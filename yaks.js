@@ -1,7 +1,7 @@
 // Yaks that roam the page background. Hovering one swaps the cursor for
 // clippers; clicking (or holding and dragging) shaves it, which it enjoys.
 // Nothing is saved, so a reload brings every coat back.
-(() => {
+(async () => {
   const TAU = Math.PI * 2
   const rand = (a, b) => a + Math.random() * (b - a)
   const pick = (list) => list[Math.floor(Math.random() * list.length)]
@@ -98,7 +98,7 @@
       x, y, pal, patches, blaze: pied, styles: [],
       tail: [], under: [], over: [], fluff: [], head: [], all: [],
       face: 1, faceTo: 1, state: 'idle', timer: rand(0, 2), target: null, tuft: null, grazeDir: 1,
-      scale: 1, sx: 1, drawY: y, speed: rand(22, 32), walk: 0, phase: 0, ha: .15,
+      scale: 1, sx: 1, drawY: y, speed: rand(40, 55), walk: 0, phase: 0, ha: .15,
       tailA: .3, tailT: 0, sway: .05, swayT: 0, swayHz: 2.2, lag: 0, hop: 0,
       seed: rand(0, TAU), blinkAt: rand(1, 5), heartT: 0, say: null, naked: false, hovered: false,
     }
@@ -235,18 +235,20 @@
 
   // ---------- drawing ----------
 
+  // Yaks live in page coordinates and scroll with the page. The canvas only
+  // covers the viewport, so drawing is offset by the scroll position.
   let W = 0
   let H = 0
   let dpr = 1
   let unit = 1
-  const field = { left: 0, right: 0, top: 0, bottom: 0 }
+  const field = { w: 0, h: 0 }
   const yaks = []
   const tufts = []
   const clippings = []
   const fx = []
 
-  const scaleAt = (y) => unit * (.78 + .32 * clamp((y - field.top) / Math.max(1, field.bottom - field.top), 0, 1))
-  const toScreen = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.drawY + y * yak.scale]
+  const toPage = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.drawY + y * yak.scale]
+  const inView = (y, above, below) => y + below > scrollY && y - above < scrollY + H
 
   function drawLeg(yak, leg, bob, t) {
     let a = 0
@@ -452,7 +454,7 @@
   }
 
   function drawTuft(tf) {
-    const s = scaleAt(tf.y)
+    const s = unit
     ctx.lineCap = 'round'
     ctx.lineWidth = 2 * s
     for (const b of tf.blades) {
@@ -505,7 +507,12 @@
   function draw(t) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, W, H)
-    const scene = [...tufts.map((tf) => ({ y: tf.y, tf })), ...yaks.map((yak) => ({ y: yak.y, yak }))]
+    ctx.translate(-scrollX, -scrollY)
+    for (const yak of yaks) yak.visible = inView(yak.y, 200 * yak.scale, 40)
+    const scene = [
+      ...tufts.filter((tf) => inView(tf.y, 30, 10)).map((tf) => ({ y: tf.y, tf })),
+      ...yaks.filter((yak) => yak.visible).map((yak) => ({ y: yak.y, yak })),
+    ]
     scene.sort((a, b) => a.y - b.y)
     for (const item of scene) item.tf ? drawTuft(item.tf) : drawYak(item.yak, t)
 
@@ -530,10 +537,85 @@
     }
     ctx.globalAlpha = 1
     for (const yak of yaks) {
-      if (!yak.say || t > yak.say.until || !yak.bones) continue
+      if (!yak.say || t > yak.say.until || !yak.visible) continue
       const h = yak.bones[1]
-      drawBubble(...toScreen(yak, h.x + 24, h.y - 52), yak.say.text)
+      drawBubble(...toPage(yak, h.x + 24, h.y - 52), yak.say.text)
     }
+  }
+
+  // ---------- room ----------
+
+  // A grid over the page marking where text and panes are, padded a little.
+  // Yaks only stand, walk and graze where their whole body fits in the gaps.
+  const CELL = 12
+  const PANES = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, details, .phone'
+  let cols = 0
+  let rows = 0
+  let taken = new Int32Array(1) // summed-area table of blocked cells
+
+  function mapPage() {
+    field.w = document.documentElement.clientWidth
+    field.h = document.documentElement.scrollHeight
+    cols = Math.ceil(field.w / CELL)
+    rows = Math.ceil(field.h / CELL)
+    const blocked = new Uint8Array(cols * rows)
+    const mark = (l, t, r, b, pad) => {
+      const x0 = clamp(Math.floor((l - pad) / CELL), 0, cols - 1)
+      const x1 = clamp(Math.floor((r + pad) / CELL), 0, cols - 1)
+      const y0 = clamp(Math.floor((t - pad) / CELL), 0, rows - 1)
+      const y1 = clamp(Math.floor((b + pad) / CELL), 0, rows - 1)
+      for (let y = y0; y <= y1; y++) blocked.fill(1, y * cols + x0, y * cols + x1 + 1)
+    }
+    const add = (rect, pad) => {
+      if (rect.width && rect.height) mark(rect.left + scrollX, rect.top + scrollY, rect.right + scrollX, rect.bottom + scrollY, pad)
+    }
+    // The sticky nav sits over whatever scrolls under it, so keep the top clear.
+    mark(0, 0, field.w, document.querySelector('nav')?.offsetHeight ?? 62, 8)
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.data.trim() && !n.parentElement.closest('script, style, nav') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    })
+    const range = document.createRange()
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      range.selectNodeContents(n)
+      for (const rect of range.getClientRects()) add(rect, 12)
+    }
+    for (const el of document.querySelectorAll(PANES)) if (!el.closest('nav')) add(el.getBoundingClientRect(), 12)
+
+    const C = cols + 1
+    taken = new Int32Array(C * (rows + 1))
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        taken[(y + 1) * C + x + 1] = blocked[y * cols + x] + taken[y * C + x + 1] + taken[(y + 1) * C + x] - taken[y * C + x]
+      }
+    }
+  }
+
+  function clear(l, t, r, b) {
+    if (l < 0 || t < 0 || r > field.w || b > field.h) return false
+    const C = cols + 1
+    const x0 = Math.floor(l / CELL)
+    const y0 = Math.floor(t / CELL)
+    const x1 = Math.min(cols, Math.floor(r / CELL) + 1)
+    const y1 = Math.min(rows, Math.floor(b / CELL) + 1)
+    return taken[y1 * C + x1] - taken[y0 * C + x1] - taken[y1 * C + x0] + taken[y0 * C + x0] === 0
+  }
+
+  // Room for a yak standing at (x, y), facing either way, horns included.
+  const roomAt = (x, y, s) => clear(x - 140 * s, y - 152 * s, x + 140 * s, y + 8 * s)
+
+  function pathClear(x0, y0, x1, y1, s) {
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 14)
+    for (let i = 1; i <= n; i++) if (!roomAt(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, s)) return false
+    return true
+  }
+
+  function freeSpot(s, tries = 200) {
+    for (let i = 0; i < tries; i++) {
+      const x = rand(0, field.w)
+      const y = rand(0, field.h)
+      if (roomAt(x, y, s)) return { x, y }
+    }
+    return null
   }
 
   // ---------- behaviour ----------
@@ -542,10 +624,19 @@
     const blades = Array.from({ length: 9 }, () => ({
       x: rand(-9, 9), h: rand(9, 18), lean: rand(-6, 6), color: pick(['#3f5a2c', '#4a6a32', '#56783a', '#35502a']),
     }))
-    return { x, y, amount, grow: amount < 1, claimed: null, blades }
+    return { x, y, amount, grow: amount < 1, claimed: null, blades, stand: null, dir: 1 }
   }
 
-  const randomSpot = () => ({ x: rand(field.left, field.right), y: rand(field.top, field.bottom) })
+  // Grass grows just ahead of a spot where a yak can stand to eat it.
+  function plantTuft(amount) {
+    const spot = freeSpot(unit)
+    if (!spot) return
+    const dir = Math.random() < .5 ? 1 : -1
+    const tf = makeTuft(spot.x + dir * 80 * unit, spot.y + 1, amount)
+    tf.stand = spot
+    tf.dir = dir
+    tufts.push(tf)
+  }
 
   function say(yak, text, t, time = 1.8) {
     yak.say = { text, until: t + time }
@@ -561,54 +652,85 @@
     yak.timer = time
   }
 
+  function wander(yak) {
+    for (let i = 0; i < 30; i++) {
+      const a = rand(0, TAU)
+      const d = rand(120, 700)
+      const x = yak.x + Math.cos(a) * d
+      const y = yak.y + Math.sin(a) * d * .6
+      if (roomAt(x, y, yak.scale) && pathClear(yak.x, yak.y, x, y, yak.scale)) {
+        yak.target = { x, y }
+        setState(yak, 'walk', 40)
+        return true
+      }
+    }
+    return false
+  }
+
+  // After the layout shifts, a yak left standing on text heads for the
+  // nearest open ground.
+  function evacuate(yak) {
+    if (roomAt(yak.x, yak.y, yak.scale)) return
+    let best = null
+    let bestD = Infinity
+    for (let i = 0; i < 400; i++) {
+      const x = yak.x + rand(-600, 600)
+      const y = yak.y + rand(-600, 600)
+      const d = Math.hypot(x - yak.x, y - yak.y)
+      if (d < bestD && roomAt(x, y, yak.scale)) { best = { x, y }; bestD = d }
+    }
+    best ??= freeSpot(yak.scale, 1000)
+    if (!best) return
+    release(yak)
+    if (!yak.visible) {
+      // Nobody is watching, so skip the walk.
+      yak.x = best.x
+      yak.y = best.y
+      return setState(yak, 'idle', 1)
+    }
+    yak.target = best
+    setState(yak, 'walk', 40)
+  }
+
   function decide(yak, t) {
     release(yak)
     if (yak.hovered) return setState(yak, 'idle', rand(1, 2))
-    if (yak.naked && Math.random() < .15) {
+    if (yak.naked && Math.random() < .12) {
       say(yak, 'brr', t)
       return setState(yak, 'shiver', 1)
     }
     const r = Math.random()
-    if (r < .4 && !still) {
-      const d = rand(100, 380)
-      const a = rand(0, TAU)
-      yak.target = { x: clamp(yak.x + Math.cos(a) * d, field.left, field.right), y: clamp(yak.y + Math.sin(a) * d * .5, field.top, field.bottom) }
-      return setState(yak, 'walk', 30)
-    }
-    if (r < .7) {
+    if (r < .62 && !still && wander(yak)) return
+    if (r < .84) {
       let tuft = null
-      let best = 600
+      let best = 800
       for (const tf of tufts) {
-        const d = Math.hypot(tf.x - yak.x, tf.y - yak.y)
-        if (!tf.claimed && tf.amount > .5 && d < best) { best = d; tuft = tf }
+        if (!tf.stand) continue
+        const d = Math.hypot(tf.stand.x - yak.x, tf.stand.y - yak.y)
+        if (!tf.claimed && tf.amount > .5 && d < best && pathClear(yak.x, yak.y, tf.stand.x, tf.stand.y, yak.scale)) { best = d; tuft = tf }
       }
       if (tuft && !still) {
-        let dir = tuft.x >= yak.x ? 1 : -1
-        const reach = 80 * scaleAt(tuft.y)
-        const x = tuft.x - dir * reach
-        if (x < field.left || x > field.right) dir = -dir
         yak.tuft = tuft
         tuft.claimed = yak
-        yak.grazeDir = dir
-        yak.target = { x: tuft.x - dir * reach, y: tuft.y - 1 }
-        return setState(yak, 'walk', 30)
+        yak.target = { ...tuft.stand }
+        return setState(yak, 'walk', 40)
       }
       // No grass in reach, so it makes do with what's underfoot.
-      const tf = makeTuft(yak.x + 80 * yak.scale * Math.sign(yak.faceTo), yak.y + 1, .7)
+      const tf = makeTuft(yak.x + 80 * yak.scale * Math.sign(yak.faceTo), yak.y + 1, .6)
       tf.grow = false
       tf.claimed = yak
       tufts.push(tf)
       yak.tuft = tf
-      return setState(yak, 'graze', rand(4, 7))
+      return setState(yak, 'graze', rand(3, 5))
     }
-    if (r < .86) return setState(yak, 'idle', rand(2, 5))
-    if (r < .93 && !still) return setState(yak, 'shake', 1.2)
+    if (r < .92) return setState(yak, 'idle', rand(1, 2.5))
+    if (r < .96 && !still) return setState(yak, 'shake', 1.2)
     say(yak, pick(['*grunt*', 'hrmph', 'mrrrh']), t)
-    return setState(yak, 'idle', 2.5)
+    return setState(yak, 'idle', 2)
   }
 
   function update(yak, dt, t) {
-    yak.scale = scaleAt(yak.y)
+    yak.scale = unit * yak.size
     yak.timer -= dt
     if (yak.hovered && yak.state === 'walk') { release(yak); setState(yak, 'idle', 1.5) }
     let walking = false
@@ -622,14 +744,14 @@
         headTo = .25
         if (d < 2 || yak.timer <= 0) {
           if (yak.tuft && d < 2) {
-            yak.faceTo = yak.grazeDir
-            setState(yak, 'graze', rand(5, 9))
+            yak.faceTo = yak.tuft.dir
+            setState(yak, 'graze', rand(3, 6))
           } else decide(yak, t)
           break
         }
         if (Math.abs(dx) > 3) yak.faceTo = Math.sign(dx)
         const turning = Math.abs(yak.face - yak.faceTo) > .3
-        const step = Math.min(d, yak.speed * yak.scale * (turning ? .25 : 1) * dt)
+        const step = Math.min(d, yak.speed * yak.scale * (turning ? .3 : 1) * dt)
         yak.x += dx / d * step
         yak.y += dy / d * step
         yak.phase += step / yak.scale * .11
@@ -639,14 +761,12 @@
       case 'graze':
         headTo = 1.15
         if (yak.tuft && yak.ha > .9 && Math.abs(yak.face - yak.faceTo) < .1) {
-          yak.tuft.amount -= dt * .07
+          yak.tuft.amount -= dt * .1
           if (yak.tuft.amount <= .05) {
+            const planted = !!yak.tuft.stand
             tufts.splice(tufts.indexOf(yak.tuft), 1)
             yak.tuft = null
-            if (tufts.length < yaks.length * 2 + 2) {
-              const spot = randomSpot()
-              tufts.push(makeTuft(spot.x, spot.y, 0))
-            }
+            if (planted) plantTuft(0)
             decide(yak, t)
           }
         }
@@ -656,7 +776,7 @@
         yak.heartT -= dt
         if (yak.heartT <= 0 && yak.bones) {
           yak.heartT = .3
-          const [x, y] = toScreen(yak, yak.bones[1].x + rand(10, 40), yak.bones[1].y - rand(15, 30))
+          const [x, y] = toPage(yak, yak.bones[1].x + rand(10, 40), yak.bones[1].y - rand(15, 30))
           fx.push({ kind: 'heart', x, y, vx: rand(-12, 12), vy: rand(-45, -30), life: 1.4, max: 1.4, size: rand(4, 6.5) })
         }
         break
@@ -664,7 +784,7 @@
         headTo = -.3
         if (!still) yak.hop = Math.abs(Math.sin(t * 7)) * 14
         if (Math.random() < dt * 14) {
-          const [x, y] = toScreen(yak, rand(-90, 110), rand(-140, -30))
+          const [x, y] = toPage(yak, rand(-90, 110), rand(-140, -30))
           fx.push({ kind: 'sparkle', x, y, vx: 0, vy: -15, life: .9, max: .9, size: rand(3, 6) })
         }
         break
@@ -737,7 +857,7 @@
     for (let i = 0; i < 4; i++) {
       const u = from + (1 - from) * i / 3
       const v = 1 - u
-      const [x, y] = toScreen(yak, v * v * st.ax + 2 * u * v * st.cx + u * u * st.ex, v * v * st.ay + 2 * u * v * st.cy + u * u * st.ey)
+      const [x, y] = toPage(yak, v * v * st.ax + 2 * u * v * st.cx + u * u * st.ex, v * v * st.ay + 2 * u * v * st.cy + u * u * st.ey)
       pts.push(x, y)
       cx += x / 4
       cy += y / 4
@@ -770,12 +890,14 @@
 
   // ---------- pointer ----------
 
+  // The pointer is kept in viewport coordinates, so a yak scrolling under a
+  // still mouse is still picked up.
   const pointer = { x: 0, y: 0, inside: false, mouse: true, down: false }
   let lastShave = 0
 
   function hitYak(yak, px, py) {
     const s = yak.scale
-    if (!yak.bones || Math.abs(yak.sx) < .3) return false
+    if (!yak.visible || Math.abs(yak.sx) < .3) return false
     if (Math.abs(px - yak.x) > 140 * s || py > yak.drawY + 6 * s || py < yak.drawY - 175 * s) return false
     const lx = (px - yak.x) / (s * yak.sx)
     const ly = (py - yak.drawY) / s
@@ -793,11 +915,13 @@
     return false
   }
 
-  // The front-most yak under the point, unless page content is in the way.
-  function yakAt(px, py) {
+  // The front-most yak under a viewport point, unless page content is in the way.
+  function yakAt(cx, cy) {
+    const px = cx + scrollX
+    const py = cy + scrollY
     const hit = [...yaks].sort((a, b) => b.y - a.y).find((yak) => hitYak(yak, px, py))
     if (!hit) return null
-    const el = document.elementFromPoint(px, py)
+    const el = document.elementFromPoint(cx, cy)
     return !el || el.closest(BLOCK) ? null : hit
   }
 
@@ -818,7 +942,7 @@
       pointer.down = true
     }
     lastShave = performance.now() / 1000
-    shave(yak, e.clientX, e.clientY, lastShave)
+    shave(yak, e.clientX + scrollX, e.clientY + scrollY, lastShave)
   })
   addEventListener('pointerup', () => { pointer.down = false })
   addEventListener('blur', () => { pointer.down = false })
@@ -831,7 +955,7 @@
     buzzer.classList.toggle('on', !!yak && pointer.down)
     if (yak && pointer.down && t - lastShave > .07) {
       lastShave = t
-      shave(yak, pointer.x, pointer.y, t)
+      shave(yak, pointer.x + scrollX, pointer.y + scrollY, t)
     }
   }
 
@@ -843,33 +967,53 @@
     dpr = Math.min(2, devicePixelRatio || 1)
     canvas.width = W * dpr
     canvas.height = H * dpr
-    unit = clamp(W / 1700, .42, .8)
-    field.left = 70 * unit
-    field.right = W - 70 * unit
-    field.top = Math.min(H * .3, 160)
-    field.bottom = H - 14
-    for (const yak of yaks) {
-      yak.x = clamp(yak.x, field.left, field.right)
-      yak.y = clamp(yak.y, field.top, field.bottom)
-    }
-    for (const tf of tufts) {
-      tf.x = clamp(tf.x, field.left, field.right)
-      tf.y = clamp(tf.y, field.top, field.bottom)
-    }
+    unit = clamp(W / 2600, .4, .6)
   }
 
+  // Re-map the page whenever its layout can change: resizes, fonts loading,
+  // FAQ answers opening. Yaks and grass caught on content move off it.
+  let remapPending = false
+  function remap() {
+    if (remapPending) return
+    remapPending = true
+    requestAnimationFrame(() => {
+      remapPending = false
+      mapPage()
+      for (const yak of yaks) evacuate(yak)
+      for (let i = tufts.length - 1; i >= 0; i--) {
+        const tf = tufts[i]
+        if (tf.stand && !tf.claimed && !roomAt(tf.stand.x, tf.stand.y, unit)) {
+          tufts.splice(i, 1)
+          plantTuft(tf.amount)
+        }
+      }
+    })
+  }
+
+  // Wait for the web fonts, so the page is mapped with its final layout.
+  await Promise.race([document.fonts?.ready, new Promise((done) => setTimeout(done, 1500))])
   resize()
-  addEventListener('resize', resize)
-  const count = clamp(Math.round(W * H / 320000), 2, 6)
+  mapPage()
+  addEventListener('resize', () => { resize(); remap() })
+  new ResizeObserver(remap).observe(document.body)
+
+  // Roughly one yak per screenful, kept apart from each other.
+  const count = clamp(Math.round(field.h / (W < 700 ? 1400 : 800)), 2, 10)
   for (let i = 0; i < count; i++) {
-    const yak = makeYak(clamp((i + .5) / count * W + rand(-60, 60), field.left, field.right), rand(field.top, field.bottom))
+    let spot = null
+    for (let k = 0; k < 20 && !spot; k++) {
+      const s = freeSpot(unit)
+      if (s && yaks.every((y) => Math.hypot(y.x - s.x, y.y - s.y) > 260)) spot = s
+    }
+    if (!spot) continue
+    const yak = makeYak(spot.x, spot.y)
+    yak.size = rand(.92, 1.08)
+    yak.scale = unit * yak.size
+    if (!roomAt(yak.x, yak.y, yak.scale)) yak.size = 1
     yak.face = yak.faceTo = Math.random() < .5 ? 1 : -1
     yaks.push(yak)
   }
-  for (let i = 0; i < count * 2 + 2; i++) {
-    const spot = randomSpot()
-    tufts.push(makeTuft(spot.x, spot.y))
-  }
+  for (let i = 0; i < yaks.length * 2; i++) plantTuft(1)
 
   let last = performance.now()
   function frame(now) {

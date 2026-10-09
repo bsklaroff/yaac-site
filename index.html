@@ -81,16 +81,6 @@
 
     /* ---------- hero ---------- */
     .hero { position: relative; padding: 6rem 0 0; text-align: center; overflow: hidden; }
-    .hero::before {
-      /* Faint grid, fading out from the top centre. */
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      background-image:
-        linear-gradient(var(--hairline-soft) 1px, transparent 1px),
-        linear-gradient(90deg, var(--hairline-soft) 1px, transparent 1px);
-      background-size: 56px 56px;
-      mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 30%, transparent 75%);
-    }
-    .hero > .wrap { position: relative; }
     h1 {
       font-size: clamp(2.3rem, 6vw, 4.5rem);
       line-height: 1.02; letter-spacing: -.038em; font-weight: 700; margin: 0 0 1.5rem;
@@ -324,12 +314,7 @@
     details a:hover { text-decoration: underline; }
 
     /* ---------- closing cta ---------- */
-    .final { padding: 8rem 0 7rem; text-align: center; position: relative; overflow: hidden; }
-    .final::before {
-      content: ""; position: absolute; left: 50%; top: 55%; width: 900px; height: 420px; transform: translate(-50%, -50%);
-      background: radial-gradient(closest-side, rgb(212 135 95 / .14), transparent); pointer-events: none;
-    }
-    .final > .wrap { position: relative; }
+    .final { padding: 8rem 0 7rem; text-align: center; }
     .final img { width: 72px; height: 72px; border-radius: 17px; margin-bottom: 1.5rem; box-shadow: 0 16px 40px rgb(0 0 0 / .6); }
     .final p { color: var(--text-dim); font-size: 1.1rem; margin: 0 0 2rem; text-wrap: pretty; }
 
@@ -412,7 +397,7 @@
       .snippet { font-size: .66rem; padding: .8rem .75rem; }
     }
     /* ---------- yaks ---------- */
-    .yaks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; opacity: .85; }
+    .yaks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
     .buzz, .buzz * { cursor: none !important; }
     .buzzer { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; display: none; }
     .buzzer.show { display: block; }
