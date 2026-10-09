@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>yaac — Yet Another Agent Container</title>
+  <meta name="description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own. Open source and self-hosted.">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="yaac — Yet Another Agent Container">
+  <meta property="og:description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own.">
+  <meta property="og:image" content="https://bsklaroff.github.io/yaac-site/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Palette from packages/frontend/src/index.css in bsklaroff/yaac. */
+    :root {
+      --shell: #0b0b0d;
+      --bg: #08080a;
+      --surface: #131317;
+      --surface-2: #1b1b21;
+      --surface-3: #26262d;
+      --border: #2c2c34;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --text-faint: #6a6a74;
+      --accent: #d4875f;
+      --accent-soft: #8a5a3d;
+      --success: #3fb950;
+      --hairline: rgb(255 255 255 / 0.07);
+      --hairline-soft: rgb(255 255 255 / 0.04);
+      --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--shell); color: var(--text);
+      font: 16px/1.6 var(--sans); font-feature-settings: "cv11";
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: inherit; }
+    code { font-family: var(--mono); }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 0 1.5rem; }
+    .narrow { max-width: 920px; }
+    h1, h2, h3, .lede { text-wrap: balance; }
+
+    /* ---------- buttons ---------- */
+    .btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .72rem 1.25rem; border-radius: 10px;
+      font: 600 .95rem/1 var(--sans); text-decoration: none;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); border-color: var(--text-faint); }
+    .btn svg { width: 17px; height: 17px; flex: none; }
+    .btn.primary { background: var(--text); border-color: var(--text); color: #111114; }
+    .btn.primary:hover { background: #fff; }
+    .btn.sm { padding: .5rem .85rem; font-size: .85rem; border-radius: 8px; }
+
+    /* ---------- nav ---------- */
+    nav {
+      position: sticky; top: 0; z-index: 20;
+      backdrop-filter: blur(14px) saturate(140%);
+      background: color-mix(in srgb, var(--shell) 78%, transparent);
+      border-bottom: 1px solid var(--hairline-soft);
+    }
+    nav .wrap { display: flex; align-items: center; height: 62px; gap: 2rem; }
+    .brand { display: flex; align-items: center; gap: .6rem; font-weight: 650; font-size: 1.05rem; text-decoration: none; letter-spacing: -.01em; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    nav ul { display: flex; gap: 1.6rem; list-style: none; margin: 0 0 0 auto; padding: 0; font-size: .9rem; }
+    nav ul a { color: var(--text-dim); text-decoration: none; }
+    nav ul a:hover { color: var(--text); }
+
+    /* ---------- hero ---------- */
+    .hero { position: relative; padding: 6rem 0 0; text-align: center; overflow: hidden; }
+    .hero::before {
+      /* Faint grid, fading out from the top centre. */
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--hairline-soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--hairline-soft) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 30%, transparent 75%);
+    }
+    .hero > .wrap { position: relative; }
+    h1 {
+      font-size: clamp(2.3rem, 6vw, 4.5rem);
+      line-height: 1.02; letter-spacing: -.038em; font-weight: 700; margin: 0 0 1.5rem;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    .lede { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--text-dim); max-width: 39rem; margin: 0 auto 2.25rem; }
+    .cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
+    .platform { margin: 1rem 0 0; font-size: .82rem; color: var(--text-faint); }
+    .platform a { color: var(--text-dim); text-decoration-color: var(--border); text-underline-offset: 3px; }
+    .platform a:hover { color: var(--text); }
+
+    .brew { max-width: 520px; margin: 2.25rem auto 0; text-align: left; }
+    .term {
+      position: relative; border-radius: 12px; background: var(--bg);
+      border: 1px solid var(--hairline);
+    }
+    .term pre { margin: 0; padding: .9rem 4.75rem .9rem 1.15rem; overflow-x: auto; font: .84rem/1.85 var(--mono); }
+    .term .p { color: var(--accent); user-select: none; }
+    .term .nb { display: none; }
+    .copy {
+      position: absolute; top: 50%; right: .65rem; transform: translateY(-50%);
+      font: 500 .75rem var(--sans); color: var(--text-dim); cursor: pointer;
+      background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 7px; padding: .35rem .65rem;
+    }
+    .copy:hover { color: var(--text); border-color: var(--border); }
+
+    .agents { margin: 2.75rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .75rem 2rem; color: var(--text-faint); font-size: .82rem; }
+    .agents ul { display: contents; list-style: none; }
+    .agents li { display: inline-flex; align-items: center; gap: .5rem; color: var(--text-dim); font-weight: 500; font-size: .92rem; }
+    .agents svg { width: 18px; height: 18px; }
+
+    /* ---------- showcase ---------- */
+    .showcase { margin-top: 4rem; }
+    .tabs {
+      display: inline-flex; padding: 4px; gap: 2px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--hairline);
+      max-width: 100%; overflow-x: auto; scrollbar-width: none;
+    }
+    .tabs button {
+      font: 550 .88rem var(--sans); color: var(--text-dim); background: none; border: 0; cursor: pointer;
+      padding: .55rem 1rem; border-radius: 9px; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: .45rem;
+      transition: background .15s ease, color .15s ease;
+    }
+    .tabs button svg { width: 15px; height: 15px; }
+    .tabs button:hover { color: var(--text); }
+    .tabs button[aria-selected="true"] { background: var(--surface-3); color: var(--text); }
+    .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .caption { min-height: 1.6em; margin: 1.1rem auto 1.75rem; color: var(--text-dim); font-size: .98rem; max-width: 40rem; }
+    .stage { position: relative; isolation: isolate; }
+    .stage::before {
+      content: ""; position: absolute; inset: 8% 6% -6%; z-index: -1;
+      background: radial-gradient(50% 50% at 50% 50%, rgb(212 135 95 / .22), transparent 70%);
+      filter: blur(40px);
+    }
+    .frame {
+      position: relative; border-radius: 14px; overflow: hidden; background: var(--bg);
+      border: 1px solid var(--hairline);
+      box-shadow: 0 40px 100px -30px rgb(0 0 0 / .8), 0 0 0 1px rgb(0 0 0 / .5);
+      aspect-ratio: 2400 / 1521;
+    }
+    .panel { position: absolute; inset: 0; transition: opacity .35s ease, visibility .35s; }
+    .panel[hidden] { display: block; opacity: 0; visibility: hidden; pointer-events: none; }
+    .panel > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top left; }
+    .phones {
+      display: flex; align-items: center; justify-content: center; gap: 5%;
+      background:
+        radial-gradient(60% 70% at 50% 100%, rgb(212 135 95 / .16), transparent 70%),
+        var(--surface);
+    }
+    .phone {
+      height: 86%; aspect-ratio: 786 / 1318; border-radius: 9% / 5.4%; overflow: hidden;
+      border: 6px solid #232329; box-shadow: 0 30px 60px -20px rgb(0 0 0 / .8), 0 0 0 1px var(--hairline);
+      background: #000;
+    }
+    .phone img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+    /* ---------- sections ---------- */
+    section { padding: 7rem 0 0; }
+    .head { max-width: 40rem; margin-bottom: 2.75rem; }
+    #features .head { max-width: 46rem; }
+    .head.center { text-align: center; margin-left: auto; margin-right: auto; max-width: 46rem; }
+    .kicker { font: 500 .75rem var(--mono); color: var(--accent); text-transform: uppercase; letter-spacing: .12em; margin-bottom: .9rem; }
+    h2 { font-size: clamp(1.9rem, 4vw, 2.75rem); letter-spacing: -.035em; line-height: 1.08; margin: 0 0 .9rem; font-weight: 680; }
+    .head p { color: var(--text-dim); margin: 0; font-size: 1.08rem; text-wrap: pretty; }
+
+    /* ---------- feature cards ---------- */
+    .bento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .card {
+      min-width: 0;
+      background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 60%, var(--shell)) 100%);
+      border: 1px solid var(--hairline); border-radius: 16px; padding: 1.9rem; display: flex; flex-direction: column;
+    }
+    .ico {
+      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+      background: var(--bg); border: 1px solid var(--hairline); color: var(--accent); margin-bottom: 1.15rem;
+    }
+    .ico svg { width: 19px; height: 19px; }
+    .card h3 { font-size: 1.15rem; letter-spacing: -.015em; margin: 0 0 .9rem; }
+    .ticks { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: .5rem; align-content: start; font-size: .94rem; color: var(--text-dim); }
+    .ticks li { position: relative; padding-left: 1.5rem; }
+    .ticks li::before {
+      content: ""; position: absolute; left: 0; top: .32em; width: 14px; height: 14px;
+      background: var(--accent);
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    .visual { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+    .visual > :first-child { flex: 1; }
+    @media (min-width: 1101px) {
+      /* Line up icon, title, text and panel across the three cards, and give
+         the panels one height. */
+      .bento { grid-template-rows: repeat(4, auto); row-gap: 0; }
+      .card { grid-row: span 4; display: grid; grid-template-rows: subgrid; }
+    }
+    .config, .switcher, .snippet { border-radius: 12px; background: var(--bg); border: 1px solid var(--hairline); }
+    .config { padding: .4rem .4rem .55rem; font-size: .8rem; }
+    .config-head { padding: .45rem .55rem .2rem; color: var(--text-faint); font-size: .74rem; font-weight: 550; }
+    .config-label { padding: .6rem .55rem .3rem; font: 500 .62rem var(--mono); color: var(--text-faint); text-transform: uppercase; letter-spacing: .1em; }
+    .config code { font: .72rem var(--mono); color: var(--text); }
+    .secret, .host { display: grid; align-items: center; gap: .6rem; padding: .32rem .55rem; border-radius: 7px; }
+    .secret { grid-template-columns: auto 1fr auto; background: var(--surface); margin: 0 .15rem .3rem; min-width: 0; }
+    .secret .dots { overflow: hidden; white-space: nowrap; min-width: 0; }
+    .secret .dots { color: var(--text-faint); letter-spacing: .05em; font-size: .7rem; }
+    .secret .to { font: .66rem var(--mono); color: var(--accent); }
+    .host { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .host code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .host i { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+    .host span { font-size: .68rem; color: var(--text-faint); }
+    .host.blocked i { background: #f85149; }
+    .host.blocked code { color: var(--text-faint); }
+    .host.blocked span { color: #f85149; }
+    .card code.inline { font-size: .85em; color: var(--text); background: var(--bg); border: 1px solid var(--hairline); padding: .08em .35em; border-radius: 5px; white-space: nowrap; }
+    .switcher { padding: .4rem; font-size: .84rem; display: flex; flex-direction: column; }
+    .switcher-head { display: flex; align-items: center; gap: .5rem; padding: .45rem .55rem .55rem; color: var(--text-faint); font-size: .74rem; font-weight: 550; }
+    .switcher-head svg { width: 14px; height: 14px; }
+    .who { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .45rem .55rem; border-radius: 8px; }
+    .who.selected { background: var(--surface-2); }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+      font-size: .72rem; font-weight: 650; color: hsl(var(--hue) 60% 75%); background: hsl(var(--hue) 35% 22%);
+    }
+    .who .id { display: flex; flex-direction: column; line-height: 1.25; color: var(--text); min-width: 0; }
+    .who .id, .who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .who small { font: .68rem var(--mono); color: var(--text-faint); }
+    .run { display: inline-flex; align-items: center; gap: .35rem; font-size: .72rem; color: var(--text-dim); white-space: nowrap; }
+    .run i { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px rgb(63 185 80 / .15); }
+    .run.idle { color: var(--text-faint); }
+    .snippet {
+      margin: 0; padding: .9rem 1rem;
+      font: .78rem/2.05 var(--mono); color: var(--text); overflow-x: auto; white-space: pre;
+    }
+    .snippet .p { color: var(--accent); user-select: none; }
+    .snippet .c { color: var(--text-faint); }
+
+    /* ---------- architecture ---------- */
+    .arch {
+      display: grid; grid-template-columns: 1fr auto 1.15fr auto 1.6fr; align-items: center;
+      padding: 2.5rem; border-radius: 18px; border: 1px solid var(--hairline);
+      background:
+        linear-gradient(var(--hairline-soft) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(90deg, var(--hairline-soft) 1px, transparent 1px) 0 0 / 28px 28px,
+        var(--bg);
+    }
+    .node {
+      border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 1.1rem 1.15rem;
+    }
+    .node h4 { margin: 0 0 .75rem; font-size: .95rem; letter-spacing: -.01em; display: flex; align-items: center; gap: .5rem; }
+    .node h4 img { width: 20px; height: 20px; border-radius: 5px; }
+    .node .sub { font: 500 .68rem var(--mono); color: var(--text-faint); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .6rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .servers { display: flex; gap: 2px; padding: 3px; margin: 0 0 .85rem; border-radius: 9px; background: var(--bg); border: 1px solid var(--hairline); }
+    .servers span { flex: 1; text-align: center; font: 500 .7rem/1 var(--mono); color: var(--text-faint); padding: .4rem 0; border-radius: 6px; }
+    .servers .on { background: var(--surface-3); color: var(--text); }
+    .chip { font-size: .78rem; padding: .3rem .6rem; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text-dim); white-space: nowrap; }
+    .clients { display: grid; gap: .6rem; }
+    .client { display: flex; align-items: center; gap: .65rem; padding: .7rem .9rem; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); font-size: .88rem; font-weight: 550; }
+    .client svg { width: 17px; height: 17px; color: var(--text-dim); }
+    .link { position: relative; width: 74px; height: 2px; margin: 0 .25rem; }
+    .link::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 11px); opacity: .7; animation: flow 1.2s linear infinite; background-size: 11px 2px; }
+    .link span { position: absolute; left: 50%; bottom: 9px; transform: translateX(-50%); font: 500 .66rem var(--mono); color: var(--text-faint); white-space: nowrap; }
+    @keyframes flow { to { background-position: 11px 0; } }
+    .server { border-color: var(--accent-soft); box-shadow: 0 0 0 4px rgb(212 135 95 / .06); }
+    .pods { display: grid; gap: .55rem; }
+    .pod { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .6rem .75rem; border-radius: 10px; background: var(--surface-2); border: 1px dashed var(--border); font-size: .82rem; line-height: 1.35; }
+    .pod svg { width: 17px; height: 17px; }
+    .pod .meta { font: .7rem var(--mono); color: var(--text-faint); }
+    .pod .tag { font: 500 .66rem var(--mono); color: var(--success); border: 1px solid rgb(63 185 80 / .3); background: rgb(63 185 80 / .08); padding: .15rem .4rem; border-radius: 5px; }
+    .mama { margin-top: .7rem; font: .72rem var(--mono); color: var(--text-faint); display: flex; align-items: center; gap: .5rem; }
+    .mama code { color: var(--accent); }
+    .egress { margin-top: .8rem; display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--text-dim); }
+    .egress svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
+
+    /* ---------- drivers table ---------- */
+    .table { border: 1px solid var(--hairline); border-radius: 16px; overflow-x: auto; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    th, td { text-align: left; padding: .95rem 1.4rem; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+    tr:last-child th, tr:last-child td { border-bottom: 0; }
+    thead th { font: 500 .72rem var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--text-faint); background: var(--bg); }
+    thead th:nth-child(2) { color: var(--accent); }
+    tbody th { font-weight: 550; color: var(--text); width: 22%; }
+    td { color: var(--text-dim); width: 39%; }
+    td code { font-size: .82em; color: var(--text); }
+    td a { color: var(--text); text-decoration: underline; text-decoration-color: var(--text-faint); text-underline-offset: 3px; }
+    td a:hover { text-decoration-color: var(--text); }
+
+    /* ---------- values ---------- */
+    .values { border-top: 1px solid var(--hairline); }
+    .value {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 2rem; align-items: baseline;
+      padding: 2rem 0; border-bottom: 1px solid var(--hairline);
+    }
+    .value h3 { font-size: clamp(1.35rem, 2.6vw, 1.85rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.15; margin: 0; }
+    .value p { margin: 0; color: var(--text-dim); font-size: 1.08rem; text-wrap: pretty; }
+
+    /* ---------- faq ---------- */
+    .faq { display: grid; grid-template-columns: 1fr 1.7fr; gap: 3rem; }
+    .faq .head { margin: 0; }
+    details { border-bottom: 1px solid var(--hairline); }
+    details:first-child { border-top: 1px solid var(--hairline); }
+    summary {
+      list-style: none; cursor: pointer; padding: 1.15rem 0; font-weight: 550;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; font: 400 1.3rem/1 var(--sans); color: var(--text-faint); transition: transform .2s ease; }
+    details[open] summary::after { transform: rotate(45deg); }
+    summary:hover { color: #fff; }
+    details p { margin: 0 0 1.25rem; color: var(--text-dim); max-width: 44rem; }
+    details code { font-size: .86em; color: var(--text); }
+    details a { color: var(--accent); text-decoration: none; }
+    details a:hover { text-decoration: underline; }
+
+    /* ---------- closing cta ---------- */
+    .final { padding: 8rem 0 7rem; text-align: center; position: relative; overflow: hidden; }
+    .final::before {
+      content: ""; position: absolute; left: 50%; top: 55%; width: 900px; height: 420px; transform: translate(-50%, -50%);
+      background: radial-gradient(closest-side, rgb(212 135 95 / .14), transparent); pointer-events: none;
+    }
+    .final > .wrap { position: relative; }
+    .final img { width: 72px; height: 72px; border-radius: 17px; margin-bottom: 1.5rem; box-shadow: 0 16px 40px rgb(0 0 0 / .6); }
+    .final p { color: var(--text-dim); font-size: 1.1rem; margin: 0 0 2rem; text-wrap: pretty; }
+
+    /* ---------- footer ---------- */
+    footer { border-top: 1px solid var(--hairline); padding: 3.5rem 0 4rem; font-size: .88rem; }
+    .foot { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 2rem; }
+    .foot p { color: var(--text-faint); margin: .9rem 0 0; max-width: 18rem; }
+    .foot .license { margin-top: .6rem; font-size: .8rem; }
+    .foot .license a { color: var(--text-faint); text-decoration: none; }
+    .foot .license a:hover { color: var(--text-dim); }
+    .foot h5 { margin: 0 0 .9rem; font-size: .8rem; color: var(--text); font-weight: 600; }
+    .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+    .foot ul a { color: var(--text-dim); text-decoration: none; }
+    .foot ul a:hover { color: var(--text); }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 960px) {
+      .bento { grid-template-columns: minmax(0, 1fr); }
+      .head p { text-wrap: balance; }
+      .arch { grid-template-columns: 1fr; justify-items: stretch; gap: 0; padding: 1.5rem; }
+      .link { width: 2px; height: 44px; margin: .25rem auto; }
+      .link::before { background: repeating-linear-gradient(180deg, var(--accent) 0 6px, transparent 6px 11px); background-size: 2px 11px; animation-name: flow-v; }
+      .link span { left: 14px; bottom: 50%; transform: translateY(50%); }
+      .clients { grid-template-columns: repeat(3, 1fr); }
+      .faq { grid-template-columns: 1fr; gap: 1.5rem; }
+      .foot { grid-template-columns: 1fr 1fr; }
+    }
+    @keyframes flow-v { to { background-position: 0 11px; } }
+    @media (max-width: 640px) {
+      nav ul li:not(.keep) { display: none; }
+      .hero { padding-top: 3.5rem; }
+      .term pre { font-size: .72rem; padding: .85rem 1rem; }
+      .term .nb { display: inline; }
+      .copy { display: none; }
+      .tabs button { padding: .5rem .65rem; font-size: .82rem; gap: .35rem; }
+      .tabs button svg { display: none; }
+      .phones { gap: 4%; }
+      .phone { height: 92%; }
+      .value { grid-template-columns: 1fr; gap: .6rem; padding: 1.5rem 0; }
+      .clients { grid-template-columns: 1fr; }
+      th, td { padding: .75rem .6rem; font-size: .8rem; }
+      th:first-child, td:first-child { padding-left: .9rem; }
+      thead th { font-size: .62rem; letter-spacing: .06em; }
+      .phone { border-width: 3px; }
+      section { padding-top: 5rem; }
+    }
+    @media (max-width: 1100px) {
+      .bento { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (min-width: 641px) and (max-width: 1100px) {
+      /* One card per row, bullets beside the panel. */
+      .card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); grid-template-rows: 1fr auto auto auto 1fr; column-gap: 2.25rem; }
+      .card > .ico { grid-column: 1; grid-row: 2; }
+      .card > h3 { grid-column: 1; grid-row: 3; }
+      .card > .ticks { grid-column: 1; grid-row: 4; margin-bottom: 0; }
+      .card > .visual { grid-column: 2; grid-row: 1 / -1; }
+    }
+    @media (max-width: 520px) {
+      /* Comparison table: each row's label on its own line, the two values below. */
+      table, thead, tbody { display: block; }
+      tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-bottom: 1px solid var(--hairline); }
+      tbody tr:last-child { border-bottom: 0; }
+      th, td { border-bottom: 0; width: auto; }
+      thead th:first-child { display: none; }
+      tbody th { grid-column: 1 / -1; padding-bottom: 0; width: auto; }
+      table th, table td { padding-left: 1rem; padding-right: .6rem; }
+      .pod .mw { display: none; }
+      tbody td { padding-top: .35rem; }
+      .pod { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .pod > span:nth-child(2), .pod .meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+      .mama { white-space: nowrap; font-size: .66rem; }
+    }
+    @media (max-width: 400px) {
+      .wrap { padding: 0 1rem; }
+      .modes, .card { padding: 1.2rem; }
+      .config, .switcher { font-size: .78rem; }
+      .secret { grid-template-columns: auto minmax(0, 1fr); }
+      .secret .dots { display: none; }
+      .secret .to { justify-self: end; }
+      .snippet { font-size: .66rem; padding: .8rem .75rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Agent marks: the tools' own logos, as vendored by Paseo's website (getpaseo/paseo, Apache-2.0). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-claude" viewBox="0 0 24 24"><path fill="currentColor" d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z"/></symbol>
+    <symbol id="i-codex" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.840a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001zm-8.381 11.558a4.199 4.199 0 01-2.675-.954c.034-.018.093-.05.132-.074l4.44-2.53a.71.71 0 00.364-.623v-6.176l1.877 1.069c.02.01.033.029.036.05v5.115c-.003 2.274-1.870 4.118-4.174 4.123zM4.192 17.78a4.059 4.059 0 01-.498-2.763c.032.02.09.055.131.078l4.44 2.53c.225.13.504.13.73 0l5.42-3.088v2.138a.068.068 0 01-.027.057L9.9 19.288c-1.999 1.136-4.552.46-5.707-1.51h-.001zM3.023 8.216A4.15 4.15 0 015.198 6.41l-.002.151v5.06a.711.711 0 00.364.624l5.42 3.087-1.876 1.07a.067.067 0 01-.063.005l-4.489-2.559c-1.995-1.14-2.679-3.658-1.53-5.63h.001zm15.417 3.54l-5.42-3.088L14.896 7.6a.067.067 0 01.063-.006l4.489 2.557c1.998 1.14 2.683 3.662 1.529 5.633a4.163 4.163 0 01-2.174 1.807V12.38a.71.71 0 00-.363-.623zm1.867-2.773a6.04 6.04 0 00-.132-.078l-4.44-2.53a.731.731 0 00-.729 0l-5.42 3.088V7.325a.068.068 0 01.027-.057L14.1 4.713c2-1.137 4.555-.46 5.707 1.513.487.833.664 1.809.499 2.757h.001zm-11.741 3.81l-1.877-1.068a.065.065 0 01-.036-.051V6.559c.001-2.277 1.873-4.122 4.181-4.12.976 0 1.92.338 2.671.954-.034.018-.092.05-.131.073l-4.44 2.53a.71.71 0 00-.365.623l-.003 6.173v.002zm1.02-2.168L12 9.25l2.414 1.375v2.75L12 14.75l-2.415-1.375v-2.75z"/></symbol>
+    <symbol id="i-opencode" viewBox="96 64 288 384"><path fill="currentColor" d="M320 224V352H192V224H320Z" opacity="0.4"/><path fill="currentColor" fill-rule="evenodd" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z"/></symbol>
+    <symbol id="i-pi" viewBox="0 0 800 800"><path fill="currentColor" fill-rule="evenodd" d="M165.29 165.29 H517.36 V400 H400 V517.36 H282.65 V634.72 H165.29 Z M282.65 282.65 V400 H400 V282.65 Z"/><path fill="currentColor" d="M517.36 400 H634.72 V634.72 H517.36 Z"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path fill="currentColor" d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.28-1.6 2.78-.41 6.9 1.15 9.15.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.38-3.68ZM14.1 5.86c.63-.77 1.06-1.83.94-2.9-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.27Z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+  </svg>
+
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="#"><img src="assets/favicon.png" alt="">yaac</a>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#architecture">How it works</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li class="keep"><a href="https://github.com/bsklaroff/yaac">GitHub</a></li>
+      </ul>
+      <a class="btn primary sm download" href="https://github.com/bsklaroff/yaac/releases/latest">Download</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <h1>Skip permissions,<br><em>responsibly.</em></h1>
+      <p class="lede">Run coding agents in parallel, each in its own gVisor sandbox. Host it on your laptop, a server, or a Kubernetes cluster.</p>
+      <div class="cta">
+        <a class="btn primary download" href="https://github.com/bsklaroff/yaac/releases/latest">
+          <svg aria-hidden="true"><use href="#i-apple"/></svg>Download for Mac
+        </a>
+        <a class="btn" href="https://github.com/bsklaroff/yaac">
+          <svg aria-hidden="true"><use href="#i-github"/></svg>View on GitHub
+        </a>
+      </div>
+      <p class="platform">Apple silicon · <a href="https://github.com/bsklaroff/yaac/blob/main/docs/install-from-source.md">Linux: install from source</a></p>
+
+      <div class="brew">
+        <div class="term">
+          <pre><code><span class="p">$ </span>brew trust bsklaroff/yaac &amp;&amp; \
+  brew install --cask<span class="nb"> \
+ </span> bsklaroff/yaac/yaac-desktop</code></pre>
+          <button class="copy" type="button" aria-label="Copy install command" data-copy="brew trust bsklaroff/yaac &amp;&amp; brew install --cask bsklaroff/yaac/yaac-desktop">Copy</button>
+        </div>
+      </div>
+
+      <div class="agents">
+        <span>Works with</span>
+        <ul>
+          <li><svg aria-hidden="true"><use href="#i-claude"/></svg>Claude Code</li>
+          <li><svg aria-hidden="true"><use href="#i-codex"/></svg>Codex</li>
+          <li><svg aria-hidden="true"><use href="#i-opencode"/></svg>OpenCode</li>
+          <li><svg aria-hidden="true"><use href="#i-pi"/></svg>Pi</li>
+        </ul>
+      </div>
+
+      <div class="showcase" id="tour">
+        <div class="tabs" role="tablist" aria-label="Product tour">
+          <button role="tab" aria-selected="true" aria-controls="panel-chat" id="tab-chat" data-caption="Drive each agent from a chat pane: prompts, tool calls, and diffs, rendered cleanly.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Chat
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="panel-terminal" id="tab-terminal" tabindex="-1" data-caption="Or from its native terminal UI. Pick per workspace.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>Terminal
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="panel-review" id="tab-review" tabindex="-1" data-caption="Review each workspace's changes against its base branch.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14"/><path d="M5 10h14"/><path d="M5 21h14"/></svg>Review
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="panel-phone" id="tab-phone" tabindex="-1" data-caption="The same app on your phone, over Tailscale.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>Phone
+          </button>
+        </div>
+        <p class="caption" aria-live="polite">Drive each agent from a chat pane: prompts, tool calls, and diffs, rendered cleanly.</p>
+        <div class="stage">
+          <div class="frame">
+            <div class="panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat">
+              <img src="assets/show-chat.webp" width="2400" height="1521" alt="yaac with several workspaces in the sidebar, two running, and an OpenCode chat showing the diff it made to the README">
+            </div>
+            <div class="panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal" hidden>
+              <img src="assets/show-terminal.webp" width="2400" height="1521" alt="The same task in OpenCode's terminal UI" loading="lazy">
+            </div>
+            <div class="panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
+              <img src="assets/show-review.webp" width="2400" height="1521" alt="The Changes view: README.md with five added lines highlighted" loading="lazy">
+            </div>
+            <div class="panel phones" role="tabpanel" id="panel-phone" aria-labelledby="tab-phone" hidden>
+              <div class="phone"><img src="assets/phone-list.webp" width="786" height="1318" alt="The workspace list on a phone" loading="lazy"></div>
+              <div class="phone"><img src="assets/phone-chat.webp" width="786" height="1318" alt="An agent chat on a phone" loading="lazy"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="head">
+        <div class="kicker">Features</div>
+        <h2>Orchestrate your agents, scalably and collaboratively.</h2>
+        <p>Agents run sandboxed, coordinate with each other, and stay visible to your team.</p>
+      </div>
+      <div class="bento">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div>
+          <h3>Sandboxed</h3>
+          <ul class="ticks">
+            <li>Agents never see your secrets</li>
+            <li>gVisor container isolation</li>
+            <li>Customizable Docker image</li>
+          </ul>
+          <div class="visual">
+            <div class="config" aria-hidden="true">
+              <div class="config-head">Project config</div>
+              <div class="config-label">Secrets</div>
+              <div class="secret"><code>STRIPE_API_KEY</code><span class="dots">••••••••</span><span class="to">api.stripe.com</span></div>
+              <div class="secret"><code>SENTRY_TOKEN</code><span class="dots">••••••••</span><span class="to">sentry.io</span></div>
+              <div class="config-label">Egress allowlist</div>
+              <div class="host"><i></i><code>api.anthropic.com</code><span>default</span></div>
+              <div class="host"><i></i><code>github.com</code><span>default</span></div>
+              <div class="host"><i></i><code>*.mycdn.example.com</code><span>added</span></div>
+              <div class="host blocked"><i></i><code>everything else</code><span>blocked</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></div>
+          <h3>Orchestration</h3>
+          <ul class="ticks">
+            <li>Spawn and message sibling agents</li>
+            <li>Queue follow-up workspaces</li>
+            <li>Works fully sandboxed</li>
+          </ul>
+          <div class="visual">
+          <div class="snippet"><span class="p">$ </span>yaac-mama list
+<span class="p">$ </span>yaac-mama create --tool codex \
+    <span class="c">"Write e2e tests for auth"</span>
+<span class="p">$ </span>yaac-mama send 3f2a91c0 \
+    <span class="c">"Tests are in, rebase on main"</span>
+<span class="p">$ </span>yaac-mama queue \
+    --parent-workspace 3f2a91c0 \
+    <span class="c">"Write the changelog entry"</span>
+<span class="p">$ </span>yaac-mama history 3f2a91c0</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <h3>Multiplayer</h3>
+          <ul class="ticks">
+            <li>Automatic sign-in over Tailscale</li>
+            <li>Share skills and config</li>
+            <li>View teammates' agents</li>
+          </ul>
+          <div class="visual">
+          <div class="switcher">
+            <div class="switcher-head" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Your projects</div>
+            <div class="who selected"><span class="avatar" style="--hue: 22">A</span><span class="id">Ada (you)<small>ada@acme.dev</small></span><span class="run"><i></i>3 running</span></div>
+            <div class="who"><span class="avatar" style="--hue: 200">G</span><span class="id">Grace<small>grace@acme.dev</small></span><span class="run"><i></i>2 running</span></div>
+            <div class="who"><span class="avatar" style="--hue: 140">L</span><span class="id">Linus<small>linus@acme.dev</small></span><span class="run idle">idle</span></div>
+            <div class="who"><span class="avatar" style="--hue: 280">M</span><span class="id">Margaret<small>margaret@acme.dev</small></span><span class="run"><i></i>1 running</span></div>
+            <div class="who"><span class="avatar" style="--hue: 45">K</span><span class="id">Ken<small>ken@acme.dev</small></span><span class="run idle">idle</span></div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="wrap">
+      <div class="head">
+        <div class="kicker">How it works</div>
+        <h2>One client, any number of servers.</h2>
+        <p>Point the app at your laptop, your team's server, or a cloud cluster, and switch between them whenever you need.</p>
+      </div>
+      <div class="arch" role="img" aria-label="Desktop app, browser, and phone connect over Tailscale to whichever yaac server you pick, which runs each workspace as a gVisor-isolated Kubernetes pod with its own git workspace">
+        <div class="clients">
+          <div class="client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>Desktop app</div>
+          <div class="client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>Browser</div>
+          <div class="client"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>Phone</div>
+        </div>
+        <div class="link"><span>tailscale</span></div>
+        <div class="node server">
+          <h4><img src="assets/favicon.png" alt="">yaac server</h4>
+          <div class="servers"><span>laptop</span><span class="on">team</span><span>cloud</span></div>
+          <div class="chips">
+            <span class="chip">Projects</span>
+            <span class="chip">Credentials</span>
+            <span class="chip">Skills</span>
+            <span class="chip">Users</span>
+            <span class="chip">Image builds</span>
+          </div>
+          <div class="egress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Egress proxy injects real tokens</div>
+        </div>
+        <div class="link"><span>k8s</span></div>
+        <div class="node">
+          <div class="sub">Workspaces</div>
+          <div class="pods">
+            <div class="pod"><svg aria-hidden="true"><use href="#i-claude"/></svg><span>auth-oidc<br><span class="meta">claude<span class="mw"> · own git workspace</span></span></span><span class="tag">gVisor</span></div>
+            <div class="pod"><svg aria-hidden="true"><use href="#i-codex"/></svg><span>e2e-tests<br><span class="meta">codex<span class="mw"> · own git workspace</span></span></span><span class="tag">gVisor</span></div>
+            <div class="pod"><svg aria-hidden="true"><use href="#i-opencode"/></svg><span>fix-links<br><span class="meta">opencode<span class="mw"> · own git workspace</span></span></span><span class="tag">gVisor</span></div>
+          </div>
+          <div class="mama">⇅ <code>yaac-mama</code> between siblings</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="drivers">
+    <div class="wrap narrow">
+      <div class="head center">
+        <div class="kicker">Two ways to run</div>
+        <h2>Feeling brave? Go containerless.</h2>
+        <p>Install a cluster for full isolation, or run directly on the host like other agent managers.</p>
+      </div>
+      <div class="table">
+        <table>
+          <thead><tr><th></th><th>Kubernetes</th><th>Containerless</th></tr></thead>
+          <tbody>
+            <tr><th>Start with</th><td><code>yaac cluster install</code></td><td><code>yaac server start</code></td></tr>
+            <tr><th>Agents run</th><td>In gVisor-isolated pods</td><td>On your computer, as you</td></tr>
+            <tr><th>Git workspace</th><td>Fresh clone per agent</td><td>Fresh clone per agent</td></tr>
+            <tr><th>Credentials</th><td>Placeholders; the proxy swaps in real ones</td><td>Real tokens in the workspace</td></tr>
+            <tr><th>Network</th><td>Per-project allowlist</td><td>Unrestricted</td></tr>
+            <tr><th>Environment</th><td>Customizable Docker image</td><td>Your computer's own tools</td></tr>
+            <tr><th>Runs on</th><td><a href="https://kind.sigs.k8s.io/">kind</a> on one machine, k3s on a few servers, or cloud-managed on AWS EKS</td><td>Any Mac or Linux machine</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="head">
+        <div class="kicker">Why Yet Another Agent Container</div>
+        <h2>You own the software factory.</h2>
+        <p>Building for an open-source, self-sovereign, cooperative future.</p>
+      </div>
+      <div class="values">
+        <div class="value">
+          <h3>Self-hosted</h3>
+          <p>Your code, credentials, and agent transcripts are stored on machines you control. Runs on open-source infrastructure.</p>
+        </div>
+        <div class="value">
+          <h3>Scalable</h3>
+          <p>Start on your laptop, then scale out to a few servers or a cloud-managed cluster.</p>
+        </div>
+        <div class="value">
+          <h3>Collaborative</h3>
+          <p>Host one server for you and your friends, or for your whole team.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap faq">
+      <div class="head">
+        <div class="kicker">FAQ</div>
+        <h2>Questions</h2>
+      </div>
+      <div>
+        <details>
+          <summary>Is it open source?</summary>
+          <p>Yes. yaac is fully open source under the MIT license.</p>
+        </details>
+        <details>
+          <summary>Which agents does it support?</summary>
+          <p>Claude Code, Codex CLI, OpenCode, and Pi.</p>
+        </details>
+        <details>
+          <summary>Can I use my existing subscription?</summary>
+          <p>Yes. Sign in with the agent subscriptions or API keys you already have, under Settings → Credentials.</p>
+        </details>
+        <details>
+          <summary>Do I need Kubernetes?</summary>
+          <p>No. <code>yaac server start</code> runs agents directly on your machine, with no cluster. For isolation, <code>yaac cluster install</code> sets up a single-machine <a href="https://kind.sigs.k8s.io/">kind</a> cluster for you, or installs onto a cluster you already run.</p>
+        </details>
+        <details>
+          <summary>Where do my credentials live?</summary>
+          <p>On your yaac server. Workspaces on Kubernetes only see placeholders; the egress proxy swaps in real tokens on outgoing requests, and only to hosts on the project's allowlist.</p>
+        </details>
+        <details>
+          <summary>Can my team share one server?</summary>
+          <p>Yes. Serve it on your tailnet and each teammate signs in as themselves, with their own projects and credentials. Everyone can see each other's workspaces read-only. See <a href="https://github.com/bsklaroff/yaac/blob/main/docs/multi-user.md">multi-user installs</a>.</p>
+        </details>
+        <details>
+          <summary>Does it run on Linux?</summary>
+          <p>The server does, <a href="https://github.com/bsklaroff/yaac/blob/main/docs/install-from-source.md">installed from source</a>. The desktop app is macOS-only for now, but the full web app works in any browser.</p>
+        </details>
+        <details>
+          <summary>What does yaac stand for?</summary>
+          <p>Yet Another Agent Container.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <img src="assets/yak-256.png" alt="">
+      <h2>Get yaac</h2>
+      <p>Free, open source, and self-hosted.</p>
+      <div class="cta">
+        <a class="btn primary download" href="https://github.com/bsklaroff/yaac/releases/latest">
+          <svg aria-hidden="true"><use href="#i-apple"/></svg>Download for Mac
+        </a>
+        <a class="btn" href="https://github.com/bsklaroff/yaac">
+          <svg aria-hidden="true"><use href="#i-github"/></svg>View on GitHub
+        </a>
+      </div>
+      <div class="brew">
+        <div class="term">
+          <pre><code><span class="p">$ </span>brew trust bsklaroff/yaac &amp;&amp; \
+  brew install --cask<span class="nb"> \
+ </span> bsklaroff/yaac/yaac-desktop</code></pre>
+          <button class="copy" type="button" aria-label="Copy install command" data-copy="brew trust bsklaroff/yaac &amp;&amp; brew install --cask bsklaroff/yaac/yaac-desktop">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot">
+        <div>
+          <a class="brand" href="#"><img src="assets/favicon.png" alt="">yaac</a>
+          <p>Yet Another Agent Container. Open source agent infrastructure for you and your team.</p>
+          <p class="license"><a href="https://github.com/bsklaroff/yaac/blob/main/LICENSE.md">MIT License</a></p>
+        </div>
+        <div>
+          <h5>Product</h5>
+          <ul>
+            <li><a class="download" href="https://github.com/bsklaroff/yaac/releases/latest">Download</a></li>
+            <li><a href="https://github.com/bsklaroff/yaac/releases">Releases</a></li>
+            <li><a href="#features">Features</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>Docs</h5>
+          <ul>
+            <li><a href="https://github.com/bsklaroff/yaac#getting-started">Getting started</a></li>
+            <li><a href="https://github.com/bsklaroff/yaac/blob/main/docs/remote-hosting.md">Remote hosting</a></li>
+            <li><a href="https://github.com/bsklaroff/yaac/blob/main/docs/multi-user.md">Multi-user</a></li>
+            <li><a href="https://github.com/bsklaroff/yaac/blob/main/docs/project-config.md">Project config</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>Community</h5>
+          <ul>
+            <li><a href="https://github.com/bsklaroff/yaac">GitHub</a></li>
+            <li><a href="https://github.com/bsklaroff/yaac/issues">Issues</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Point every download link at the latest release's .dmg. Its name carries
+    // the version, so it can't be linked statically; without one the links
+    // stay on the releases page.
+    fetch('https://api.github.com/repos/bsklaroff/yaac/releases/latest')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((release) => {
+        const dmg = release?.assets?.find((a) => a.name.endsWith('.dmg'))
+        if (dmg) document.querySelectorAll('.download').forEach((a) => { a.href = dmg.browser_download_url })
+      })
+      .catch(() => {})
+
+    // Copy the install command as one line, whatever its display wrapping.
+    document.querySelectorAll('.copy').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy)
+          button.textContent = 'Copied'
+        } catch {
+          button.textContent = 'Copy failed'
+        }
+        setTimeout(() => { button.textContent = 'Copy' }, 1500)
+      })
+    })
+
+    // Product tour tabs.
+    const tabs = [...document.querySelectorAll('.tabs [role="tab"]')]
+    const caption = document.querySelector('.caption')
+    function select(tab) {
+      tabs.forEach((t) => {
+        const on = t === tab
+        t.setAttribute('aria-selected', on)
+        t.tabIndex = on ? 0 : -1
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on
+      })
+      caption.textContent = tab.dataset.caption
+    }
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t))
+      t.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+        const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]
+        next.focus()
+        select(next)
+      })
+    })
+  </script>
+</body>
+</html>
