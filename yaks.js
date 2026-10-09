@@ -914,7 +914,7 @@
         st.L = STUB
       }
       setState(yak, 'celebrate', .8)
-      say(yak, 'so fresh!', t, 1.2)
+      if (Math.random() < .3) say(yak, pick(['so fresh!', 'ahh, breezy', '♪']), t, 1.2)
       for (let i = 0; i < 6; i++) sparkle(yak)
     }
   }
