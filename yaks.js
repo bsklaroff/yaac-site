@@ -852,7 +852,7 @@
         break
       case 'celebrate':
         headTo = -.3
-        if (!still && yak.timer > .5) yak.hop = Math.abs(Math.sin(t * 9)) * 7
+        if (!still && yak.timer > .3) yak.hop = Math.abs(Math.sin(t * 9)) * 7
         if (Math.random() < dt * 5) sparkle(yak)
         break
       case 'shake':
@@ -913,8 +913,8 @@
         drop(yak, st, 0)
         st.L = STUB
       }
-      setState(yak, 'celebrate', 1.4)
-      say(yak, 'so fresh!', t, 1.6)
+      setState(yak, 'celebrate', .8)
+      say(yak, 'so fresh!', t, 1.2)
       for (let i = 0; i < 6; i++) sparkle(yak)
     }
   }
