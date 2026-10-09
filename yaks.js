@@ -718,7 +718,9 @@
   // A grid over the page marking where text and panes are, padded a little.
   // Yaks only stand, walk and graze where their whole body fits in the gaps.
   const CELL = 12
-  const PANES = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, details, .phone'
+  // Panes, plus layouts whose gaps belong to the text around them: a yak
+  // between a value's title and its description would split the row.
+  const PANES = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, details, .phone, .values'
   let cols = 0
   let rows = 0
   let taken = new Int32Array(1) // summed-area table of blocked cells
