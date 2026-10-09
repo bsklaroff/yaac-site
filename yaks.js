@@ -53,11 +53,14 @@
   // White patches on piebald yaks. The skin under them is pink.
   const PIED = { under: ['#b9afa2', '#c6bdb0'], over: ['#ddd5c9', '#e6dfd4', '#d2c9bc'], hi: ['#f2ece3'], skin: '#c49a92', face: '#ddd5c9' }
 
-  const canvas = document.createElement('canvas')
-  canvas.className = 'yaks'
-  canvas.setAttribute('aria-hidden', 'true')
-  document.body.prepend(canvas)
-  const ctx = canvas.getContext('2d')
+  // Each yak, tuft and pile of clippings gets its own small canvas, placed in
+  // the page. The browser scrolls them like any other element, and only the
+  // patches where something moves are repainted.
+  const stage = document.createElement('div')
+  stage.className = 'yaks'
+  stage.setAttribute('aria-hidden', 'true')
+  document.body.prepend(stage)
+  let ctx = null // the canvas currently being drawn into
 
   const buzzer = document.createElement('div')
   buzzer.className = 'buzzer'
@@ -103,7 +106,7 @@
       face: 1, faceTo: 1, state: 'idle', timer: rand(0, 2), target: null, tuft: null, grazeDir: 1,
       scale: 1, sx: 1, drawY: y, speed: rand(40, 55), walk: 0, phase: 0, ha: .15,
       tailA: .3, tailT: 0, sway: .05, swayT: 0, swayHz: 2.2, lag: 0, hop: 0,
-      seed: rand(0, TAU), blinkAt: rand(1, 5), heartT: 0, say: null, naked: false, hovered: false,
+      seed: rand(0, TAU), blinkAt: rand(1, 5), fx: [], litter: null, sprite: null, visible: false, layers: {}, layerK: 0, coatDirty: true, tailDirty: true, headHa: null, heartT: 0, say: null, naked: false, hovered: false,
     }
     const styleOf = (color, w) => {
       let i = yak.styles.findIndex((st) => st.color === color && st.w === w)
@@ -182,31 +185,32 @@
     return [bone(0, bob, 0), bone(NECK.x + 12 * g, NECK.y + 18 * g + bob, yak.ha), bone(TAIL.x, TAIL.y + bob, yak.tailA)]
   }
 
-  // Lay out every strand as a quadratic curve. A strand's shape depends on its
-  // full length, so cutting one just ends it sooner along the same curve.
-  function layoutCoat(yak, bones) {
-    for (const st of yak.all) {
+  // Lay out strands as quadratic curves. A strand's shape depends on its full
+  // length, so cutting one just ends it sooner along the same curve.
+  // `tilt` lays head hair out relative to the head while still letting the
+  // beard hang straight down for a head tilted that far.
+  function layoutCoat(list, bones, tilt = 0) {
+    for (const st of list) {
       const b = bones[st.bone]
       const rx = b.x + st.x * b.c - st.y * b.s
       const ry = b.y + st.x * b.s + st.y * b.c
-      const a = st.gravity ? st.angle : st.angle + b.a
+      const a = st.gravity ? st.angle - tilt : st.angle + b.a
       const dx = Math.cos(a)
       const dy = Math.sin(a)
-      const bend = st.curl + yak.sway * Math.sin(yak.swayT + st.phase) + yak.lag
       const L = st.L
       const k1 = L * L * .075 / st.L0
       const k2 = L * L * .3 / st.L0
-      const mx = rx + dx * L / 2 + bend * k1
+      const mx = rx + dx * L / 2 + st.curl * k1
       const my = ry + dy * L / 2 + st.droop * k1
       st.ax = rx; st.ay = ry; st.dx = dx; st.dy = dy
-      st.ex = rx + dx * L + bend * k2
+      st.ex = rx + dx * L + st.curl * k2
       st.ey = ry + dy * L + st.droop * k2
       st.cx = 2 * mx - (rx + st.ex) / 2
       st.cy = 2 * my - (ry + st.ey) / 2
     }
   }
 
-  function strokeCoat(yak, list) {
+  function strokeCoat(c, yak, list) {
     const paths = []
     for (const st of list) {
       if (st.L <= STUB) continue
@@ -215,13 +219,13 @@
       p.quadraticCurveTo(st.cx, st.cy, st.ex, st.ey)
     }
     paths.forEach((p, i) => {
-      ctx.strokeStyle = yak.styles[i].color
-      ctx.lineWidth = yak.styles[i].w
-      ctx.stroke(p)
+      c.strokeStyle = yak.styles[i].color
+      c.lineWidth = yak.styles[i].w
+      c.stroke(p)
     })
   }
 
-  function strokeStubble(yak, list) {
+  function strokeStubble(c, yak, list) {
     const p = new Path2D()
     let any = false
     for (const st of list) {
@@ -231,29 +235,97 @@
       any = true
     }
     if (!any) return
-    ctx.globalAlpha = .55
-    ctx.strokeStyle = yak.pal.stubble
-    ctx.lineWidth = 1.2
-    ctx.stroke(p)
-    ctx.globalAlpha = 1
+    c.globalAlpha = .55
+    c.strokeStyle = yak.pal.stubble
+    c.lineWidth = 1.2
+    c.stroke(p)
+    c.globalAlpha = 1
+  }
+
+  // Hair is by far the most expensive thing to draw, so each yak's hair is
+  // painted into a few bitmaps (body coat, head hair, tail) that are only
+  // repainted when they change: a cut, a new size, the head moving. Each frame
+  // just stamps them in place, skewed a little so the coat still sways.
+  const COAT_BOX = { x: -114, y: -164, w: 236, h: 180 }
+  const HEAD_BOX = { x: -40, y: -80, w: 130, h: 160 }
+  const TAIL_BOX = { x: -40, y: -6, w: 64, h: 100 }
+  const BODY_LISTS = ['under', 'over', 'fluff']
+
+  function paintLayer(yak, name, box, k, paint) {
+    const cv = yak.layers[name] ??= document.createElement('canvas')
+    const w = Math.ceil(box.w * k)
+    const h = Math.ceil(box.h * k)
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h }
+    const c = cv.getContext('2d')
+    c.setTransform(1, 0, 0, 1, 0, 0)
+    c.clearRect(0, 0, w, h)
+    c.setTransform(k, 0, 0, k, -box.x * k, -box.y * k)
+    c.lineCap = 'round'
+    paint(c)
+  }
+
+  function stamp(yak, name, box, skew, pivotY) {
+    ctx.save()
+    ctx.translate(0, pivotY)
+    ctx.transform(1, 0, skew, 1, 0, 0)
+    ctx.translate(0, -pivotY)
+    ctx.drawImage(yak.layers[name], box.x, box.y, box.w, box.h)
+    ctx.restore()
   }
 
   // ---------- drawing ----------
 
-  // Yaks live in page coordinates and scroll with the page. The canvas only
-  // covers the viewport, so drawing is offset by the scroll position.
   let W = 0
   let H = 0
   let dpr = 1
   let unit = 1
+  let quality = 1 // hair bitmap resolution, lowered on slow machines
   const field = { w: 0, h: 0 }
   const yaks = []
   const tufts = []
-  const clippings = []
-  const fx = []
+  const litters = []
 
   const toPage = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.drawY + y * yak.scale]
   const inView = (y, above, below) => y + below > scrollY && y - above < scrollY + H
+
+  function makeSprite() {
+    const cv = document.createElement('canvas')
+    stage.append(cv)
+    return { cv, c: cv.getContext('2d'), left: 0, top: 0, w: 0, h: 0, dpr: 0, z: null }
+  }
+
+  // Size and place a sprite over a rect of the page, clear it, and point ctx
+  // at it, ready to draw in page coordinates.
+  function begin(sp, l, t, r, b, z) {
+    const left = Math.floor(l)
+    const top = Math.floor(t)
+    // The size depends only on the rect's extent, not where it sits, so a
+    // moving sprite isn't reallocated every frame.
+    const w = Math.ceil(r - l) + 1
+    const h = Math.ceil(b - t) + 1
+    if (sp.w !== w || sp.h !== h || sp.dpr !== dpr) {
+      sp.cv.width = Math.round(w * dpr)
+      sp.cv.height = Math.round(h * dpr)
+      sp.cv.style.width = `${w}px`
+      sp.cv.style.height = `${h}px`
+      sp.w = w
+      sp.h = h
+      sp.dpr = dpr
+    } else {
+      sp.c.setTransform(1, 0, 0, 1, 0, 0)
+      sp.c.clearRect(0, 0, sp.cv.width, sp.cv.height)
+    }
+    if (sp.left !== left || sp.top !== top) {
+      sp.cv.style.transform = `translate(${left}px, ${top}px)`
+      sp.left = left
+      sp.top = top
+    }
+    const zi = Math.round(z)
+    if (sp.z !== zi) { sp.cv.style.zIndex = zi; sp.z = zi }
+    sp.cv.hidden = false
+    ctx = sp.c
+    ctx.setTransform(dpr, 0, 0, dpr, -left * dpr, -top * dpr)
+  }
 
   function drawLeg(yak, leg, bob, t) {
     let a = 0
@@ -402,6 +474,9 @@
     ctx.restore()
   }
 
+  const ORIGIN = { x: 0, y: 0, a: 0, c: 1, s: 0 }
+  const REST = [ORIGIN, ORIGIN, ORIGIN]
+
   function drawYak(yak, t) {
     const s = yak.scale
     const pal = yak.pal
@@ -409,7 +484,34 @@
     yak.drawY = yak.y - yak.hop * s
     const bones = yak.bones = pose(yak)
     const bob = bones[0].y
-    layoutCoat(yak, bones)
+
+    // Repaint whichever hair bitmaps are stale. They're painted with the body
+    // at rest and the tail hanging straight; bob and swish are applied when
+    // they're stamped.
+    const k = s * dpr * quality
+    if (yak.layerK !== k) { yak.layerK = k; yak.coatDirty = yak.tailDirty = true; yak.headHa = null }
+    if (yak.tailDirty) {
+      layoutCoat(yak.tail, REST)
+      paintLayer(yak, 'tail', TAIL_BOX, k, (c) => { strokeStubble(c, yak, yak.tail); strokeCoat(c, yak, yak.tail) })
+      yak.tailDirty = false
+    }
+    if (yak.coatDirty) {
+      for (const name of BODY_LISTS) layoutCoat(yak[name], REST)
+      paintLayer(yak, 'coat', COAT_BOX, k, (c) => {
+        for (const name of BODY_LISTS) strokeStubble(c, yak, yak[name])
+        for (const name of BODY_LISTS) strokeCoat(c, yak, yak[name])
+      })
+    }
+    // Head hair is painted relative to the head, so it only needs repainting
+    // when the head tips far enough that the beard should hang differently.
+    if (yak.coatDirty || yak.headHa === null || Math.abs(yak.ha - yak.headHa) > .12) {
+      layoutCoat(yak.head, REST, yak.ha)
+      paintLayer(yak, 'head', HEAD_BOX, k, (c) => { strokeStubble(c, yak, yak.head); strokeCoat(c, yak, yak.head) })
+      yak.headHa = yak.ha
+    }
+    yak.coatDirty = false
+    yak.laidOut = false
+    const skew = still ? 0 : yak.sway * Math.sin(yak.swayT) * .25 + yak.lag * .3
 
     ctx.fillStyle = 'rgb(0 0 0 / .35)'
     ctx.beginPath(); ctx.ellipse(yak.x, yak.y, 86 * s * Math.max(.35, Math.abs(yak.sx)), 8 * s, 0, 0, TAU); ctx.fill()
@@ -434,9 +536,8 @@
     ctx.lineCap = 'round'
     ctx.lineWidth = 5
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-3, 20, -4, 36); ctx.stroke()
+    ctx.drawImage(yak.layers.tail, TAIL_BOX.x, TAIL_BOX.y, TAIL_BOX.w, TAIL_BOX.h)
     ctx.restore()
-    strokeStubble(yak, yak.tail)
-    strokeCoat(yak, yak.tail)
 
     // Shorn body: skin, pink under white patches, ribs, hip and shoulder.
     const g = ctx.createLinearGradient(0, -128, 0, -34)
@@ -481,18 +582,15 @@
 
     for (const leg of LEGS) if (leg.near) drawLeg(yak, leg, bob, t)
 
-    ctx.lineCap = 'round'
-    strokeStubble(yak, yak.under)
-    strokeStubble(yak, yak.over)
-    strokeStubble(yak, yak.fluff)
-    strokeCoat(yak, yak.under)
-    strokeCoat(yak, yak.over)
-    strokeCoat(yak, yak.fluff)
-
+    ctx.translate(0, bob)
+    stamp(yak, 'coat', COAT_BOX, skew, -120)
+    ctx.translate(0, -bob)
     drawHeadBase(yak, hb, t)
-    ctx.lineCap = 'round'
-    strokeStubble(yak, yak.head)
-    strokeCoat(yak, yak.head)
+    ctx.save()
+    ctx.translate(hb.x, hb.y)
+    ctx.rotate(hb.a)
+    stamp(yak, 'head', HEAD_BOX, skew * .5, 0)
+    ctx.restore()
     drawFace(yak, hb, t)
     ctx.restore()
   }
@@ -548,42 +646,70 @@
     ctx.fillText(text, x, y - h / 2 + .5)
   }
 
-  function draw(t) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, W, H)
-    ctx.translate(-scrollX, -scrollY)
-    for (const yak of yaks) yak.visible = inView(yak.y, 200 * yak.scale, 40)
-    const scene = [
-      ...tufts.filter((tf) => inView(tf.y, 30, 10)).map((tf) => ({ y: tf.y, tf })),
-      ...yaks.filter((yak) => yak.visible).map((yak) => ({ y: yak.y, yak })),
-    ]
-    scene.sort((a, b) => a.y - b.y)
-    for (const item of scene) item.tf ? drawTuft(item.tf) : drawYak(item.yak, t)
-
-    ctx.lineCap = 'round'
-    for (const c of clippings) {
-      ctx.globalAlpha = Math.min(1, c.life / 3)
-      ctx.save()
-      ctx.translate(c.x, c.y)
-      ctx.rotate(c.rot)
-      ctx.strokeStyle = c.color
-      ctx.lineWidth = c.w
-      ctx.beginPath()
-      ctx.moveTo(c.pts[0], c.pts[1])
-      for (let i = 2; i < c.pts.length; i += 2) ctx.lineTo(c.pts[i], c.pts[i + 1])
-      ctx.stroke()
-      ctx.restore()
-    }
-    for (const f of fx) {
+  function drawEffects(list) {
+    for (const f of list) {
       ctx.globalAlpha = Math.min(1, f.life / (f.max * .5))
       if (f.kind === 'heart') { ctx.fillStyle = '#ff7a93'; drawHeart(f.x, f.y, f.size) }
       else { ctx.fillStyle = '#ffd98a'; drawSparkle(f.x, f.y, f.size) }
     }
     ctx.globalAlpha = 1
+  }
+
+  function drawClippings(list) {
+    ctx.lineCap = 'round'
+    for (const c of list) {
+      const cos = Math.cos(c.rot)
+      const sin = Math.sin(c.rot)
+      ctx.globalAlpha = Math.min(1, c.life / 3)
+      ctx.strokeStyle = c.color
+      ctx.lineWidth = c.w
+      ctx.beginPath()
+      for (let i = 0; i < c.pts.length; i += 2) {
+        const x = c.x + c.pts[i] * cos - c.pts[i + 1] * sin
+        const y = c.y + c.pts[i] * sin + c.pts[i + 1] * cos
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)
+      }
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 1
+  }
+
+  // The canvas a yak (plus its hearts and speech bubble) is drawn in, around
+  // where it stands.
+  const yakBox = (yak, x, y) => {
+    const s = yak.scale
+    return [x - 210 * s - 50, y - 250 * s - 36, x + 210 * s + 50, y + 26 * s]
+  }
+
+  function draw(t) {
     for (const yak of yaks) {
-      if (!yak.say || t > yak.say.until || !yak.visible) continue
-      const h = yak.bones[1]
-      drawBubble(...toPage(yak, h.x + 24, h.y - 52), yak.say.text)
+      if (!yak.visible) {
+        if (yak.sprite) yak.sprite.cv.hidden = true
+        continue
+      }
+      yak.sprite ??= makeSprite()
+      const [l, tp, r, b] = yakBox(yak, yak.x, yak.y - yak.hop * yak.scale)
+      begin(yak.sprite, l, tp, r, b, yak.y)
+      drawYak(yak, t)
+      drawEffects(yak.fx)
+      if (yak.say && t < yak.say.until) {
+        const h = yak.bones[1]
+        drawBubble(...toPage(yak, h.x + 24, h.y - 52), yak.say.text)
+      }
+    }
+    // Grass and fallen hair are only redrawn while they change.
+    for (const tf of tufts) {
+      if (tf.drawn === tf.amount) continue
+      tf.sprite ??= makeSprite()
+      begin(tf.sprite, tf.x - 16 * unit - 2, tf.y - 20 * unit - 2, tf.x + 16 * unit + 2, tf.y + 3, tf.y)
+      drawTuft(tf)
+      tf.drawn = tf.amount
+    }
+    for (const lt of litters) {
+      if (!lt.dirty) continue
+      begin(lt.sprite, ...lt.box, lt.y + 1)
+      drawClippings(lt.items)
+      lt.dirty = false
     }
   }
 
@@ -598,8 +724,11 @@
   let taken = new Int32Array(1) // summed-area table of blocked cells
 
   function mapPage() {
+    stage.style.height = '0'
     field.w = document.documentElement.clientWidth
     field.h = document.documentElement.scrollHeight
+    stage.style.width = `${field.w}px`
+    stage.style.height = `${field.h}px`
     cols = Math.ceil(field.w / CELL)
     rows = Math.ceil(field.h / CELL)
     const blocked = new Uint8Array(cols * rows)
@@ -668,7 +797,12 @@
     const blades = Array.from({ length: 9 }, () => ({
       x: rand(-9, 9), h: rand(9, 18), lean: rand(-6, 6), color: pick(['#3f5a2c', '#4a6a32', '#56783a', '#35502a']),
     }))
-    return { x, y, amount, grow: amount < 1, claimed: null, blades, stand: null, dir: 1 }
+    return { x, y, amount, grow: amount < 1, claimed: null, blades, stand: null, dir: 1, sprite: null, drawn: -1 }
+  }
+
+  function removeTuft(i) {
+    tufts[i].sprite?.cv.remove()
+    tufts.splice(i, 1)
   }
 
   // Grass grows just ahead of a spot where a yak can stand to eat it.
@@ -834,7 +968,7 @@
           yak.tuft.amount -= dt * .1
           if (yak.tuft.amount <= .05) {
             const planted = !!yak.tuft.stand
-            tufts.splice(tufts.indexOf(yak.tuft), 1)
+            removeTuft(tufts.indexOf(yak.tuft))
             yak.tuft = null
             if (planted) plantTuft(0)
             decide(yak, t)
@@ -847,7 +981,7 @@
         if (yak.heartT <= 0 && yak.bones) {
           yak.heartT = .3
           const [x, y] = toPage(yak, yak.bones[1].x + rand(10, 40), yak.bones[1].y - rand(15, 30))
-          fx.push({ kind: 'heart', x, y, vx: rand(-12, 12), vy: rand(-45, -30), life: 1.4, max: 1.4, size: rand(4, 6.5) })
+          yak.fx.push({ kind: 'heart', x, y, vx: rand(-12, 12), vy: rand(-45, -30), life: 1.4, max: 1.4, size: rand(4, 6.5) })
         }
         break
       case 'celebrate':
@@ -876,7 +1010,16 @@
 
   // Cut every strand that passes under the clippers, keeping the part above
   // the cut. The rest falls to the ground.
+  // Strands are only laid out where they're drawn when something needs to
+  // know: a hit test, a cut, a sparkle.
+  function layOut(yak) {
+    if (yak.laidOut || !yak.bones) return
+    layoutCoat(yak.all, yak.bones)
+    yak.laidOut = true
+  }
+
   function shave(yak, px, py, t) {
+    layOut(yak)
     const s = yak.scale
     const lx = (px - yak.x) / (s * yak.sx)
     const ly = (py - yak.drawY) / s
@@ -895,6 +1038,7 @@
         break
       }
     }
+    if (dropped) yak.coatDirty = yak.tailDirty = true
 
     // Clippers held down keep cutting; don't let that end the celebration.
     if (yak.state === 'celebrate') return
@@ -913,6 +1057,7 @@
         drop(yak, st, 0)
         st.L = STUB
       }
+      yak.coatDirty = yak.tailDirty = true
       setState(yak, 'celebrate', .8)
       if (Math.random() < .3) say(yak, pick(['so fresh!', 'ahh, breezy', '♪']), t, 1.2)
       for (let i = 0; i < 6; i++) sparkle(yak)
@@ -922,10 +1067,11 @@
   // A sparkle somewhere on the yak itself: at the root of a random hair,
   // which covers the body, head and tail.
   function sparkle(yak) {
+    layOut(yak)
     const st = pick(yak.all)
     if (st.ax === undefined) return
     const [x, y] = toPage(yak, st.ax + rand(-6, 6), st.ay + rand(-6, 6))
-    fx.push({ kind: 'sparkle', x, y, vx: 0, vy: rand(-25, -10), life: rand(.45, .65), max: .65, size: rand(3, 6.5) })
+    yak.fx.push({ kind: 'sparkle', x, y, vx: 0, vy: rand(-25, -10), life: rand(.45, .65), max: .65, size: rand(3, 6.5) })
   }
 
   function drop(yak, st, from) {
@@ -943,32 +1089,53 @@
     }
     for (let i = 0; i < pts.length; i += 2) { pts[i] -= cx; pts[i + 1] -= cy }
     const style = yak.styles[st.style]
-    clippings.push({
-      pts, x: cx, y: cy, vx: rand(-30, 30), vy: rand(-50, 0), rot: 0, vr: rand(-2, 2),
-      color: style.color, w: style.w * s, ground: yak.y + rand(-4, 10) * s, landed: false, life: rand(9, 15),
+    // Clippings land in a pile with its own canvas, which stays put if the
+    // yak walks off.
+    let lt = yak.litter
+    if (!lt || Math.hypot(lt.x - yak.x, lt.y - yak.y) > 30 || lt.items.length >= 300) {
+      const [l, t, r, b] = yakBox(yak, yak.x, yak.y)
+      lt = yak.litter = { x: yak.x, y: yak.y, box: [l - 20, t, r + 20, b + 40], items: [], dirty: true, sprite: makeSprite() }
+      litters.push(lt)
+    }
+    lt.items.push({
+      pts, x: cx, y: cy, vx: rand(-25, 25), vy: rand(-50, 0), rot: 0, vr: rand(-2, 2),
+      color: style.color, w: style.w * s, ground: yak.y + rand(-4, 10) * s, landed: false, life: rand(7, 11),
     })
-    if (clippings.length > 900) clippings.shift()
+    lt.dirty = true
   }
 
   function updateEffects(dt) {
-    for (const c of clippings) {
-      if (c.landed) { c.life -= dt; continue }
-      c.vy = Math.min(c.vy + 320 * dt, 130)
-      c.vx *= 1 - dt * 1.5
-      c.x += c.vx * dt
-      c.y += c.vy * dt
-      c.rot += c.vr * dt
-      if (c.y >= c.ground) { c.y = c.ground; c.landed = true }
+    for (const lt of litters) {
+      for (const c of lt.items) {
+        c.life -= dt
+        if (c.life < 3) lt.dirty = true
+        if (c.landed) continue
+        c.vy = Math.min(c.vy + 320 * dt, 130)
+        c.vx *= 1 - dt * 1.5
+        c.x += c.vx * dt
+        c.y += c.vy * dt
+        c.rot += c.vr * dt
+        if (c.y >= c.ground) { c.y = c.ground; c.landed = true }
+        lt.dirty = true
+      }
+      lt.items = lt.items.filter((c) => c.life > 0)
     }
-    for (const f of fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt }
-    for (const list of [clippings, fx]) {
-      for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1)
+    for (let i = litters.length - 1; i >= 0; i--) {
+      const lt = litters[i]
+      if (lt.items.length) continue
+      lt.sprite.cv.remove()
+      litters.splice(i, 1)
+      for (const yak of yaks) if (yak.litter === lt) yak.litter = null
+    }
+    for (const yak of yaks) {
+      for (const f of yak.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt }
+      yak.fx = yak.fx.filter((f) => f.life > 0)
     }
     for (const tf of tufts) {
       if (tf.wither) tf.amount -= dt * .4
       else if (tf.grow) { tf.amount = Math.min(1, tf.amount + dt * .05); tf.grow = tf.amount < 1 }
     }
-    for (let i = tufts.length - 1; i >= 0; i--) if (tufts[i].amount <= 0) tufts.splice(i, 1)
+    for (let i = tufts.length - 1; i >= 0; i--) if (tufts[i].amount <= 0) removeTuft(i)
   }
 
   // ---------- pointer ----------
@@ -982,6 +1149,7 @@
     const s = yak.scale
     if (!yak.visible || Math.abs(yak.sx) < .3) return false
     if (Math.abs(px - yak.x) > 140 * s || py > yak.drawY + 6 * s || py < yak.drawY - 175 * s) return false
+    layOut(yak)
     const lx = (px - yak.x) / (s * yak.sx)
     const ly = (py - yak.drawY) / s
     if (inBody(lx, ly - yak.bones[0].y)) return true
@@ -1047,10 +1215,28 @@
   function resize() {
     W = innerWidth
     H = innerHeight
-    dpr = Math.min(2, devicePixelRatio || 1)
-    canvas.width = W * dpr
-    canvas.height = H * dpr
+    dpr = Math.min(perf.dprCap, devicePixelRatio || 1)
     unit = clamp(W / 2600, .4, .6)
+  }
+
+  // Watch the frame rate while yaks are on screen. If the machine can't keep
+  // up, drop to 1x resolution first, then draw the yaks at 30, 20 and 15 fps.
+  // Their behaviour still updates every frame, so they don't slow down.
+  const perf = { avg: 16.7, slow: 0, fast: 0, every: 1, dprCap: 2 }
+  if ((navigator.hardwareConcurrency || 8) <= 2) { perf.dprCap = 1; perf.every = 2 }
+
+  function adapt(ms) {
+    perf.avg += (Math.min(ms, 100) - perf.avg) * .05
+    if (perf.avg > 24) { perf.slow += ms; perf.fast = 0 } else if (perf.avg < 18) { perf.fast += ms; perf.slow = 0 }
+    if (perf.slow > 1500) {
+      perf.slow = 0
+      perf.avg = 16.7
+      if (perf.dprCap > 1 && (devicePixelRatio || 1) > 1) { perf.dprCap = 1; resize() }
+      else if (perf.every < 4) perf.every++
+    } else if (perf.fast > 15000 && perf.every > 1) {
+      perf.fast = 0
+      perf.every--
+    }
   }
 
   // Re-map the page whenever its layout can change: resizes, fonts loading,
@@ -1068,7 +1254,7 @@
         if (tf.claimed) continue
         const ok = tf.stand ? roomAt(tf.stand.x, tf.stand.y, unit) : clear(tf.x - 12, tf.y - 20, tf.x + 12, tf.y + 2)
         if (ok) continue
-        tufts.splice(i, 1)
+        removeTuft(i)
         if (tf.stand) plantTuft(tf.amount)
       }
     }, 200)
@@ -1100,14 +1286,22 @@
   for (let i = 0; i < yaks.length * 2; i++) plantTuft(1)
 
   let last = performance.now()
+  let frameNo = 0
   function frame(now) {
-    const dt = Math.min(.05, (now - last) / 1000)
+    const ms = now - last
+    const dt = Math.min(.05, ms / 1000)
     const t = now / 1000
     last = now
+    let anyVisible = false
+    for (const yak of yaks) {
+      yak.visible = inView(yak.y, 260 * yak.scale, 40)
+      anyVisible ||= yak.visible
+    }
     updateHover(t)
     for (const yak of yaks) update(yak, dt, t)
     updateEffects(dt)
-    draw(t)
+    if (anyVisible) adapt(ms)
+    if (++frameNo % perf.every === 0) draw(t)
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
