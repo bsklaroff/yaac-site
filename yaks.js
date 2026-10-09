@@ -821,11 +821,7 @@
   }
 
   function release(yak) {
-    if (yak.tuft) {
-      yak.tuft.claimed = null
-      // Grass a yak only found underfoot withers once it moves on.
-      if (!yak.tuft.stand) yak.tuft.wither = true
-    }
+    if (yak.tuft) yak.tuft.claimed = null
     yak.tuft = null
   }
 
@@ -1131,11 +1127,15 @@
       for (const f of yak.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt }
       yak.fx = yak.fx.filter((f) => f.life > 0)
     }
-    for (const tf of tufts) {
-      if (tf.wither) tf.amount -= dt * .4
-      else if (tf.grow) { tf.amount = Math.min(1, tf.amount + dt * .05); tf.grow = tf.amount < 1 }
+    for (const tf of tufts) if (tf.grow) { tf.amount = Math.min(1, tf.amount + dt * .05); tf.grow = tf.amount < 1 }
+    // Grass a yak found underfoot stays where it was eaten down to. So it
+    // doesn't pile up, the oldest is cleared once there's too much of it,
+    // but only while it's off screen.
+    const loose = tufts.filter((tf) => !tf.stand && !tf.claimed)
+    if (loose.length > yaks.length) {
+      const old = loose.find((tf) => !inView(tf.y, 30, 10))
+      if (old) removeTuft(tufts.indexOf(old))
     }
-    for (let i = tufts.length - 1; i >= 0; i--) if (tufts[i].amount <= 0) removeTuft(i)
   }
 
   // ---------- pointer ----------
