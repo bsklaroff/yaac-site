@@ -925,7 +925,7 @@
     const st = pick(yak.all)
     if (st.ax === undefined) return
     const [x, y] = toPage(yak, st.ax + rand(-6, 6), st.ay + rand(-6, 6))
-    fx.push({ kind: 'sparkle', x, y, vx: 0, vy: rand(-25, -10), life: rand(.7, 1.1), max: 1.1, size: rand(3, 6.5) })
+    fx.push({ kind: 'sparkle', x, y, vx: 0, vy: rand(-25, -10), life: rand(.45, .65), max: .65, size: rand(3, 6.5) })
   }
 
   function drop(yak, st, from) {
