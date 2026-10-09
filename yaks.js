@@ -14,10 +14,13 @@
   // middle of the yak, y pointing down. A yak is about 170 units long. This is
   // the shorn body, so the hump, ribs and skinny legs show once the coat is off.
   const BODY = new Path2D('M82 -64C84 -86 74 -104 60 -114C50 -132 30 -138 14 -126C-8 -112 -40 -110 -62 -106C-80 -102 -88 -88 -86 -74C-84 -60 -78 -50 -68 -46C-54 -43 -40 -47 -24 -43C-4 -36 30 -34 50 -40C70 -46 80 -52 82 -64Z')
-  // The head, horns and ear are drawn around the neck pivot, muzzle right.
-  const HEAD = new Path2D('M-2 -14C10 -22 30 -20 40 -12C50 -4 58 8 64 18C68 26 64 34 56 34C46 34 36 30 26 26C14 22 2 18 -4 10Z')
-  const HORN = new Path2D('M15 -15C8 -30 16 -45 33 -47C24 -41 22 -30 28 -16Z')
-  const EAR = new Path2D('M15 -9Q5 -15 -6 -8Q5 -3 15 -4Z')
+  // The head, horns and ear are drawn around the neck pivot, muzzle right:
+  // a short, broad face ending in a wide muzzle. The horns grow from the
+  // sides of the poll, rise, and sweep forward to a point.
+  const HEAD = new Path2D('M-4 -10C0 -20 14 -24 26 -20C36 -16 44 -6 52 6C58 14 64 18 65 25C66 32 62 37 55 38C48 39 40 37 32 33C22 29 10 24 0 16C-6 10 -7 0 -4 -10Z')
+  const HORN = new Path2D('M6 -12C0 -26 2 -44 20 -54C24 -56 28 -57 31 -56C24 -52 18 -44 17 -34C16 -26 18 -18 20 -12Z')
+  const HORN_RIDGES = new Path2D('M4.5 -18Q12 -15.5 19 -18M3 -24Q10 -21.5 17.5 -24M2.5 -30Q9.5 -27.5 16.5 -30')
+  const EAR = new Path2D('M10 -4C2 -10 -10 -10 -16 -4C-10 0 0 2 10 2Z')
   const NECK = { x: 72, y: -98 }
   const TAIL = { x: -84, y: -92 }
   const LEGS = [
@@ -34,17 +37,17 @@
     { // wild black
       under: ['#2b201a', '#33261e', '#3a2b21'], over: ['#46352a', '#4f3c2e', '#3d2e24', '#5a4434'], hi: ['#7a604b', '#8a6d55', '#6a523f'],
       skin: '#4f4342', skinLight: '#665755', stubble: '#2a201c', fur: '#3a2c23', furDark: '#271e18',
-      muzzle: '#1f1916', horn: '#c9b99a', hornTip: '#4a4540', hoof: '#151110',
+      muzzle: '#1f1916', muzzleRing: '#5e5550', horn: '#a39886', hornTip: '#24201d', hoof: '#151110',
     },
     { // golden
       under: ['#6e4d2c', '#7a5531', '#634528'], over: ['#8f6a3f', '#9c7547', '#a57d4c', '#87613a'], hi: ['#c49a62', '#d0a86f', '#b88d58'],
       skin: '#93716a', skinLight: '#ab8a80', stubble: '#5b4026', fur: '#7c5833', furDark: '#5a3f24',
-      muzzle: '#3d2c24', horn: '#ddd0b5', hornTip: '#8a7e6a', hoof: '#2a1f18',
+      muzzle: '#3d2c24', muzzleRing: '#b89f82', horn: '#d6c8a8', hornTip: '#5f5647', hoof: '#2a1f18',
     },
     { // grey-brown
       under: ['#3e3530', '#463c36', '#38302b'], over: ['#5a4e46', '#665950', '#52473f'], hi: ['#8d7f73', '#9a8b7d'],
       skin: '#5d5150', skinLight: '#726564', stubble: '#2f2925', fur: '#4c423b', furDark: '#362f2a',
-      muzzle: '#2a2421', horn: '#cfc4ad', hornTip: '#5d564d', hoof: '#1a1613',
+      muzzle: '#2a2421', muzzleRing: '#7d726a', horn: '#bcb19c', hornTip: '#36312c', hoof: '#1a1613',
     },
   ]
   // White patches on piebald yaks. The skin under them is pink.
@@ -149,21 +152,23 @@
       while (sx < -60 && !inBody(sx, sy)) sx++
       strand('fluff', pick(['hi', 'over']), 2.2, 0, sx + rand(1, 4), sy, Math.PI - rand(0, .5), rand(7, 12), rand(1, 1.6))
     }
-    // Head: a fringe over the eyes, a tuft between the horns, and a beard.
-    for (let n = 0; n < 34;) {
-      const sx = rand(10, 42)
-      const sy = rand(-20, -4)
+    // Head: a thick fringe over the brow, a tuft between the horns, a mane
+    // down the back of the head that hides the neck, and a beard.
+    for (let n = 0; n < 46;) {
+      const sx = rand(0, 34)
+      const sy = rand(-22, -6)
       if (!inHead(sx, sy)) continue
       n++
-      strand('head', 'over', 2, 1, sx, sy, rand(.4, 1.1), rand(10, 20), .4)
+      strand('head', pick(['over', 'over', 'hi']), 2.1, 1, sx, sy, rand(.6, 1.3), rand(12, 22), .5)
     }
-    for (let i = 0; i < 12; i++) strand('head', 'hi', 1.8, 1, rand(4, 20), rand(-17, -13), -Math.PI / 2 - rand(.4, 1), rand(8, 13), .8)
+    for (let i = 0; i < 14; i++) strand('head', 'hi', 1.9, 1, rand(2, 16), rand(-21, -16), -Math.PI / 2 - rand(.3, .9), rand(9, 15), .9)
+    for (let i = 0; i < 18; i++) strand('head', 'under', 2.6, 1, rand(-6, 6), rand(-10, 14), Math.PI / 2 + rand(0, .4), rand(20, 34), rand(.2, .4), true)
     for (let n = 0; n < 36;) {
-      const sx = rand(-4, 36)
-      const sy = rand(6, 32)
+      const sx = rand(-4, 40)
+      const sy = rand(6, 40)
       if (!inHead(sx, sy) || inHead(sx, sy + 5)) continue
       n++
-      strand('head', pick(['under', 'over']), 2.3, 1, sx, sy, Math.PI / 2 + rand(-.2, .2), rand(14, 26) + (36 - sx) * .35, rand(.1, .3), true)
+      strand('head', pick(['under', 'over']), 2.3, 1, sx, sy, Math.PI / 2 + rand(-.2, .2), rand(14, 26) + (40 - sx) * .3, rand(.1, .3), true)
     }
     yak.all = [...yak.tail, ...yak.under, ...yak.over, ...yak.fluff, ...yak.head]
     return yak
@@ -278,11 +283,25 @@
     ctx.beginPath(); ctx.ellipse(fx + 1, fy - 1.5, 5.5, 3.5, 0, 0, TAU); ctx.fill()
   }
 
-  function hornPaint(yak, x0, y0, dark) {
-    const g = ctx.createLinearGradient(x0 + 20, y0 - 15, x0 + 32, y0 - 46)
-    g.addColorStop(0, dark ? yak.pal.hornTip : yak.pal.horn)
-    g.addColorStop(1, dark ? '#1c1a18' : yak.pal.hornTip)
-    return g
+  function drawHorn(yak, far) {
+    const pal = yak.pal
+    ctx.save()
+    if (far) { ctx.translate(15, -3); ctx.scale(.9, .9) }
+    const g = ctx.createLinearGradient(12, -12, 30, -56)
+    g.addColorStop(0, far ? pal.hornTip : pal.horn)
+    g.addColorStop(.35, far ? pal.hornTip : pal.horn)
+    g.addColorStop(1, far ? '#151312' : pal.hornTip)
+    ctx.fillStyle = g
+    ctx.fill(HORN)
+    if (!far) {
+      ctx.strokeStyle = 'rgb(0 0 0 / .22)'
+      ctx.lineWidth = 1.1
+      ctx.stroke(HORN_RIDGES)
+      ctx.strokeStyle = 'rgb(255 255 255 / .2)'
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(6, -20); ctx.bezierCurveTo(3, -32, 6, -44, 20, -52); ctx.stroke()
+    }
+    ctx.restore()
   }
 
   function drawHeadBase(yak, b, t) {
@@ -290,70 +309,95 @@
     ctx.save()
     ctx.translate(b.x, b.y)
     ctx.rotate(b.a)
-    ctx.save()
-    ctx.translate(8, 3)
-    ctx.fillStyle = hornPaint(yak, 8, 3, true)
-    ctx.fill(HORN)
-    ctx.restore()
-    const g = ctx.createLinearGradient(0, -20, 0, 34)
+    ctx.lineCap = 'round'
+    drawHorn(yak, true)
+
+    const g = ctx.createLinearGradient(0, -22, 10, 38)
     g.addColorStop(0, pal.fur)
     g.addColorStop(1, pal.furDark)
     ctx.fillStyle = g
     ctx.fill(HEAD)
+    ctx.save()
+    ctx.clip(HEAD)
     if (yak.blaze) {
-      ctx.save()
-      ctx.clip(HEAD)
       ctx.fillStyle = PIED.face
-      ctx.beginPath(); ctx.ellipse(46, 6, 12, 26, -.6, 0, TAU); ctx.fill()
-      ctx.restore()
+      ctx.beginPath(); ctx.ellipse(42, 6, 10, 26, -.75, 0, TAU); ctx.fill()
     }
+    const cheek = ctx.createRadialGradient(20, 6, 0, 20, 6, 18)
+    cheek.addColorStop(0, 'rgb(255 255 255 / .08)')
+    cheek.addColorStop(1, 'rgb(255 255 255 / 0)')
+    ctx.fillStyle = cheek
+    ctx.fillRect(0, -12, 40, 36)
+    ctx.strokeStyle = 'rgb(255 255 255 / .08)'
+    ctx.lineWidth = 4
+    ctx.beginPath(); ctx.moveTo(30, -15); ctx.quadraticCurveTo(46, -2, 58, 16); ctx.stroke()
+    ctx.strokeStyle = 'rgb(0 0 0 / .28)'
+    ctx.lineWidth = 3
+    ctx.beginPath(); ctx.moveTo(6, 20); ctx.quadraticCurveTo(28, 34, 52, 39); ctx.stroke()
+    // A broad, pale-rimmed muzzle with a dark nose pad.
+    ctx.fillStyle = yak.blaze ? '#c9a8a0' : pal.muzzleRing
+    ctx.beginPath(); ctx.ellipse(55, 28, 12.5, 10.5, .35, 0, TAU); ctx.fill()
+    ctx.restore()
     ctx.fillStyle = yak.blaze ? '#8f6f6a' : pal.muzzle
-    ctx.beginPath(); ctx.ellipse(57, 25, 9, 10, .5, 0, TAU); ctx.fill()
-    ctx.fillStyle = 'rgb(0 0 0 / .55)'
-    ctx.beginPath(); ctx.ellipse(62.5, 20, 2.2, 1.3, .9, 0, TAU); ctx.fill()
+    ctx.beginPath(); ctx.ellipse(59.5, 23.5, 7, 6, .5, 0, TAU); ctx.fill()
+    ctx.fillStyle = 'rgb(0 0 0 / .6)'
+    ctx.beginPath(); ctx.ellipse(62, 21.5, 2.6, 1.5, .9, 0, TAU); ctx.fill()
+    ctx.strokeStyle = 'rgb(0 0 0 / .45)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(61, 23.5); ctx.quadraticCurveTo(59, 25, 57.5, 23.5); ctx.stroke()
     const chew = yak.state === 'graze' && !still ? Math.sin(t * 9) * 1.5 : 0
     ctx.strokeStyle = 'rgb(0 0 0 / .5)'
     ctx.lineWidth = 1.4
-    ctx.beginPath(); ctx.moveTo(61, 31 + chew * .3); ctx.quadraticCurveTo(55, 33 + chew, 48, 30); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(64, 33 + chew * .3); ctx.quadraticCurveTo(57, 36 + chew, 48, 34); ctx.stroke()
+
+    // A small, hairy ear held out below the horn, flicking now and then.
     ctx.save()
-    ctx.translate(15, -7)
-    ctx.rotate(Math.sin(t * 1.1 + yak.seed) * .15 + (Math.sin(t * .37 + yak.seed) > .97 ? Math.sin(t * 30) * .3 : 0))
-    ctx.translate(-15, 7)
+    ctx.translate(8, -1)
+    ctx.rotate(Math.sin(t * 1.1 + yak.seed) * .12 + (Math.sin(t * .37 + yak.seed) > .97 ? Math.sin(t * 30) * .3 : 0))
+    ctx.translate(-8, 1)
     ctx.fillStyle = pal.fur
     ctx.fill(EAR)
-    ctx.fillStyle = 'rgb(214 150 140 / .45)'
-    ctx.beginPath(); ctx.ellipse(6, -7.5, 6, 1.6, -.15, 0, TAU); ctx.fill()
+    ctx.fillStyle = 'rgb(214 150 140 / .4)'
+    ctx.beginPath(); ctx.ellipse(-2, -3, 7, 1.8, -.05, 0, TAU); ctx.fill()
+    ctx.strokeStyle = pal.furDark
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    for (let x = -14; x <= 6; x += 3) { ctx.moveTo(x, 0); ctx.lineTo(x - 2, 4) }
+    ctx.stroke()
     ctx.restore()
-    ctx.fillStyle = hornPaint(yak, 0, 0, false)
-    ctx.fill(HORN)
+
+    drawHorn(yak, false)
     ctx.restore()
   }
 
+  // The eye, drawn after the fringe so it peeks out from under it.
   function drawFace(yak, b, t) {
     const happy = yak.state === 'enjoy' || yak.state === 'celebrate'
     ctx.save()
     ctx.translate(b.x, b.y)
     ctx.rotate(b.a)
-    const ex = 34
-    const ey = -1
+    const ex = 31
+    const ey = -4
+    ctx.fillStyle = 'rgb(0 0 0 / .25)'
+    ctx.beginPath(); ctx.ellipse(ex, ey + .5, 5.5, 4.5, 0, 0, TAU); ctx.fill()
     if (happy) {
       ctx.strokeStyle = '#f1e4cf'
-      ctx.lineWidth = 1.8
+      ctx.lineWidth = 1.7
       ctx.lineCap = 'round'
-      ctx.beginPath(); ctx.arc(ex, ey + 2, 3.6, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke()
+      ctx.beginPath(); ctx.arc(ex, ey + 2, 3.2, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke()
       ctx.fillStyle = 'rgb(255 120 135 / .5)'
-      ctx.beginPath(); ctx.ellipse(43, 11, 5.5, 3, .3, 0, TAU); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(40, 8, 5.5, 3, .3, 0, TAU); ctx.fill()
     } else if (t < yak.blinkUntil) {
       ctx.strokeStyle = '#140f0d'
-      ctx.lineWidth = 1.6
-      ctx.beginPath(); ctx.moveTo(ex - 3.5, ey); ctx.lineTo(ex + 3.5, ey + .5); ctx.stroke()
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(ex - 3, ey); ctx.lineTo(ex + 3, ey + .5); ctx.stroke()
     } else {
-      ctx.fillStyle = '#e9dcc6'
-      ctx.beginPath(); ctx.ellipse(ex, ey, 4.1, 4.3, 0, 0, TAU); ctx.fill()
-      ctx.fillStyle = '#140f0d'
-      ctx.beginPath(); ctx.ellipse(ex + .8, ey + .3, 2.9, 3.2, 0, 0, TAU); ctx.fill()
+      ctx.fillStyle = '#d7c8b0'
+      ctx.beginPath(); ctx.ellipse(ex, ey, 3.5, 3.3, 0, 0, TAU); ctx.fill()
+      ctx.fillStyle = '#120d0b'
+      ctx.beginPath(); ctx.ellipse(ex + .6, ey + .2, 2.5, 2.7, 0, 0, TAU); ctx.fill()
       ctx.fillStyle = '#fff'
-      ctx.beginPath(); ctx.arc(ex + 1.8, ey - 1, .9, 0, TAU); ctx.fill()
+      ctx.beginPath(); ctx.arc(ex + 1.4, ey - .9, .8, 0, TAU); ctx.fill()
     }
     ctx.restore()
   }
@@ -426,11 +470,11 @@
     ctx.beginPath(); ctx.moveTo(56, -120); ctx.bezierCurveTo(36, -138, 0, -116, -66, -103); ctx.stroke()
     ctx.restore()
 
-    // Neck, joining the shoulders to wherever the head is. Its short fur
-    // matches the head's.
+    // Neck, joining the shoulders to wherever the head is, in shadow under
+    // the mane.
     const hb = bones[1]
     const hp = (x, y) => [hb.x + x * hb.c - y * hb.s, hb.y + x * hb.s + y * hb.c]
-    ctx.fillStyle = pal.fur
+    ctx.fillStyle = pal.furDark
     ctx.beginPath()
     ctx.moveTo(56, -116 + bob); ctx.lineTo(...hp(2, -17)); ctx.lineTo(...hp(-2, 14)); ctx.lineTo(78, -60 + bob)
     ctx.fill()
@@ -643,7 +687,11 @@
   }
 
   function release(yak) {
-    if (yak.tuft) yak.tuft.claimed = null
+    if (yak.tuft) {
+      yak.tuft.claimed = null
+      // Grass a yak only found underfoot withers once it moves on.
+      if (!yak.tuft.stand) yak.tuft.wither = true
+    }
     yak.tuft = null
   }
 
@@ -667,33 +715,54 @@
     return false
   }
 
-  // After the layout shifts, a yak left standing on text heads for the
-  // nearest open ground.
-  function evacuate(yak) {
-    if (roomAt(yak.x, yak.y, yak.scale)) return
+  // The open spot nearest to (x, y), from a full sweep of the page grid.
+  function nearestRoom(x, y, s) {
     let best = null
     let bestD = Infinity
-    for (let i = 0; i < 400; i++) {
-      const x = yak.x + rand(-600, 600)
-      const y = yak.y + rand(-600, 600)
-      const d = Math.hypot(x - yak.x, y - yak.y)
-      if (d < bestD && roomAt(x, y, yak.scale)) { best = { x, y }; bestD = d }
+    for (let gy = CELL / 2; gy < field.h; gy += CELL) {
+      if ((gy - y) ** 2 >= bestD) continue
+      for (let gx = CELL / 2; gx < field.w; gx += CELL) {
+        const d = (gx - x) ** 2 + (gy - y) ** 2
+        if (d < bestD && roomAt(gx, gy, s)) { best = { x: gx, y: gy }; bestD = d }
+      }
     }
-    best ??= freeSpot(yak.scale, 1000)
-    if (!best) return
+    return best
+  }
+
+  const onScreen = (yak) => yak.x > scrollX - 60 && yak.x < scrollX + W + 60 && inView(yak.y, 150 * yak.scale, 10)
+
+  // A yak the layout has moved onto content (or off the page edge) heads for
+  // the nearest open ground at a trot, or simply appears there if nobody is
+  // looking. Returns whether it had to move.
+  function relocate(yak) {
+    if (roomAt(yak.x, yak.y, yak.scale)) return false
+    const spot = nearestRoom(yak.x, yak.y, yak.scale)
+    if (!spot) return false
     release(yak)
-    if (!yak.visible) {
-      // Nobody is watching, so skip the walk.
-      yak.x = best.x
-      yak.y = best.y
-      return setState(yak, 'idle', 1)
+    if (!onScreen(yak) || still) {
+      yak.x = spot.x
+      yak.y = spot.y
+      setState(yak, 'idle', rand(.5, 1.5))
+    } else {
+      yak.target = spot
+      yak.rush = true
+      setState(yak, 'walk', 30)
     }
-    yak.target = best
-    setState(yak, 'walk', 40)
+    return true
+  }
+
+  // After a layout change: move stranded yaks, and send any yak whose walk
+  // now runs into content off somewhere else.
+  function replan(yak, t) {
+    yak.scale = unit * yak.size
+    if (relocate(yak) || yak.state !== 'walk' || yak.rush) return
+    if (!roomAt(yak.target.x, yak.target.y, yak.scale) || !pathClear(yak.x, yak.y, yak.target.x, yak.target.y, yak.scale)) decide(yak, t)
   }
 
   function decide(yak, t) {
     release(yak)
+    yak.scale = unit * yak.size
+    if (relocate(yak)) return
     if (yak.hovered) return setState(yak, 'idle', rand(1, 2))
     if (yak.naked && Math.random() < .12) {
       say(yak, 'brr', t)
@@ -732,7 +801,7 @@
   function update(yak, dt, t) {
     yak.scale = unit * yak.size
     yak.timer -= dt
-    if (yak.hovered && yak.state === 'walk') { release(yak); setState(yak, 'idle', 1.5) }
+    if (yak.hovered && yak.state === 'walk' && !yak.rush) { release(yak); setState(yak, 'idle', 1.5) }
     let walking = false
     let headTo = .12 + Math.sin(t * .6 + yak.seed) * .12
     yak.hop = 0
@@ -743,6 +812,7 @@
         const d = Math.hypot(dx, dy)
         headTo = .25
         if (d < 2 || yak.timer <= 0) {
+          yak.rush = false
           if (yak.tuft && d < 2) {
             yak.faceTo = yak.tuft.dir
             setState(yak, 'graze', rand(3, 6))
@@ -751,10 +821,10 @@
         }
         if (Math.abs(dx) > 3) yak.faceTo = Math.sign(dx)
         const turning = Math.abs(yak.face - yak.faceTo) > .3
-        const step = Math.min(d, yak.speed * yak.scale * (turning ? .3 : 1) * dt)
+        const step = Math.min(d, yak.speed * yak.scale * (turning ? .3 : 1) * (yak.rush ? 2.5 : 1) * dt)
         yak.x += dx / d * step
         yak.y += dy / d * step
-        yak.phase += step / yak.scale * .11
+        yak.phase += step / yak.scale * (yak.rush ? .07 : .11)
         walking = true
         break
       }
@@ -782,11 +852,8 @@
         break
       case 'celebrate':
         headTo = -.3
-        if (!still) yak.hop = Math.abs(Math.sin(t * 7)) * 14
-        if (Math.random() < dt * 14) {
-          const [x, y] = toPage(yak, rand(-90, 110), rand(-140, -30))
-          fx.push({ kind: 'sparkle', x, y, vx: 0, vy: -15, life: .9, max: .9, size: rand(3, 6) })
-        }
+        if (!still && yak.timer > .5) yak.hop = Math.abs(Math.sin(t * 9)) * 7
+        if (Math.random() < dt * 5) sparkle(yak)
         break
       case 'shake':
         headTo = .2
@@ -829,6 +896,8 @@
       }
     }
 
+    // Clippers held down keep cutting; don't let that end the celebration.
+    if (yak.state === 'celebrate') return
     if (yak.state !== 'enjoy') {
       release(yak)
       if (Math.random() < .5) say(yak, pick(['mmm', 'ahh', 'oh yes', 'right there', '♪']), t)
@@ -844,9 +913,19 @@
         drop(yak, st, 0)
         st.L = STUB
       }
-      setState(yak, 'celebrate', 2.4)
-      say(yak, 'so fresh!', t, 2.4)
+      setState(yak, 'celebrate', 1.4)
+      say(yak, 'so fresh!', t, 1.6)
+      for (let i = 0; i < 6; i++) sparkle(yak)
     }
+  }
+
+  // A sparkle somewhere on the yak itself: at the root of a random hair,
+  // which covers the body, head and tail.
+  function sparkle(yak) {
+    const st = pick(yak.all)
+    if (st.ax === undefined) return
+    const [x, y] = toPage(yak, st.ax + rand(-6, 6), st.ay + rand(-6, 6))
+    fx.push({ kind: 'sparkle', x, y, vx: 0, vy: rand(-25, -10), life: rand(.7, 1.1), max: 1.1, size: rand(3, 6.5) })
   }
 
   function drop(yak, st, from) {
@@ -885,7 +964,11 @@
     for (const list of [clippings, fx]) {
       for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1)
     }
-    for (const tf of tufts) if (tf.grow) { tf.amount = Math.min(1, tf.amount + dt * .05); tf.grow = tf.amount < 1 }
+    for (const tf of tufts) {
+      if (tf.wither) tf.amount -= dt * .4
+      else if (tf.grow) { tf.amount = Math.min(1, tf.amount + dt * .05); tf.grow = tf.amount < 1 }
+    }
+    for (let i = tufts.length - 1; i >= 0; i--) if (tufts[i].amount <= 0) tufts.splice(i, 1)
   }
 
   // ---------- pointer ----------
@@ -971,23 +1054,24 @@
   }
 
   // Re-map the page whenever its layout can change: resizes, fonts loading,
-  // FAQ answers opening. Yaks and grass caught on content move off it.
-  let remapPending = false
+  // FAQ answers opening. Layout can change on every frame of a window drag,
+  // so wait for it to settle first.
+  let remapTimer = 0
   function remap() {
-    if (remapPending) return
-    remapPending = true
-    requestAnimationFrame(() => {
-      remapPending = false
+    clearTimeout(remapTimer)
+    remapTimer = setTimeout(() => {
       mapPage()
-      for (const yak of yaks) evacuate(yak)
+      const t = performance.now() / 1000
+      for (const yak of yaks) replan(yak, t)
       for (let i = tufts.length - 1; i >= 0; i--) {
         const tf = tufts[i]
-        if (tf.stand && !tf.claimed && !roomAt(tf.stand.x, tf.stand.y, unit)) {
-          tufts.splice(i, 1)
-          plantTuft(tf.amount)
-        }
+        if (tf.claimed) continue
+        const ok = tf.stand ? roomAt(tf.stand.x, tf.stand.y, unit) : clear(tf.x - 12, tf.y - 20, tf.x + 12, tf.y + 2)
+        if (ok) continue
+        tufts.splice(i, 1)
+        if (tf.stand) plantTuft(tf.amount)
       }
-    })
+    }, 200)
   }
 
   // Wait for the web fonts, so the page is mapped with its final layout.
