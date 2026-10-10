@@ -140,23 +140,83 @@
       position: relative; border-radius: 14px; overflow: hidden; background: var(--bg);
       border: 1px solid var(--hairline);
       box-shadow: 0 40px 100px -30px rgb(0 0 0 / .8), 0 0 0 1px rgb(0 0 0 / .5);
-      aspect-ratio: 2400 / 1521;
+      /* The panels share one grid cell, so the screenshots size the frame. */
+      display: grid; cursor: zoom-in;
     }
-    .panel { position: absolute; inset: 0; transition: opacity .35s ease, visibility .35s; }
+    .panel { grid-area: 1 / 1; transition: opacity .35s ease, visibility .35s; }
     .panel[hidden] { display: block; opacity: 0; visibility: hidden; pointer-events: none; }
-    .panel > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top left; }
-    .phones {
-      display: flex; align-items: center; justify-content: center; gap: 5%;
-      background:
-        radial-gradient(60% 70% at 50% 100%, rgb(212 135 95 / .16), transparent 70%),
-        var(--surface);
+    .panel > img { width: 100%; height: auto; display: block; }
+    .zoom {
+      position: absolute; top: .75rem; right: .75rem; z-index: 2;
+      width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
+      border-radius: 9px; border: 1px solid var(--hairline); color: var(--text);
+      background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+      opacity: 0; transition: opacity .2s ease, background .15s ease;
     }
-    .phone {
-      height: 86%; aspect-ratio: 786 / 1318; border-radius: 9% / 5.4%; overflow: hidden;
-      border: 6px solid #232329; box-shadow: 0 30px 60px -20px rgb(0 0 0 / .8), 0 0 0 1px var(--hairline);
-      background: #000;
+    .zoom svg { width: 17px; height: 17px; }
+    .frame:hover .zoom, .zoom:focus-visible { opacity: 1; }
+    .zoom:hover { background: var(--surface-3); }
+    .zoom:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (hover: none) { .zoom { opacity: 1; } }
+
+    /* ---------- screenshot lightbox ---------- */
+    /* A stable gutter keeps the page from shifting when the scroll lock below
+       removes a classic scrollbar. */
+    html { scrollbar-gutter: stable; }
+    html:has(.lightbox[open]) { overflow: hidden; }
+    .lightbox {
+      width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+      background: var(--bg); color: var(--text); text-align: left; overflow: hidden;
     }
-    .phone img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .lightbox[open] { display: block; animation: lb-in .2s ease; }
+    .lightbox::backdrop { background: transparent; }
+    @keyframes lb-in { from { opacity: 0; } }
+    /* The bar and caption float over the image, so the fitted view gets the whole window. */
+    .lb-stage {
+      position: absolute; inset: 0; overflow: auto; overscroll-behavior: contain;
+      display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: .5rem;
+    }
+    .lb-stage:focus { outline: none; }
+    .lightbox.keys .lb-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+    .lb-img {
+      max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+      border-radius: 10px; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .8), 0 0 0 1px var(--hairline);
+    }
+    .lb-stage.fitw { place-items: start center; }
+    .lb-stage.fitw .lb-img { max-height: none; width: 100%; }
+    .lb-stage.zoomable .lb-img { cursor: zoom-in; }
+    .lb-stage.actual { place-items: start; }
+    .lb-stage.actual .lb-img { max-width: none; max-height: none; cursor: zoom-out; margin: auto; }
+    .lb-bar {
+      position: absolute; inset: 0 0 auto; z-index: 1; pointer-events: none;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem;
+    }
+    .lb-bar > * { pointer-events: auto; }
+    .lb-title, .lb-caption > span {
+      background: rgb(8 8 10 / .9); border: 1px solid var(--hairline); border-radius: 10px;
+      box-shadow: 0 8px 24px rgb(0 0 0 / .5);
+    }
+    .lb-title { font-weight: 600; font-size: .92rem; padding: .45rem .8rem; }
+    .lb-actions { display: flex; gap: .4rem; }
+    .lb-btn {
+      width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; color: var(--text);
+      border-radius: 9px; border: 1px solid var(--hairline); background: var(--surface);
+    }
+    .lb-btn[hidden] { display: none; }
+    .lb-btn:hover { background: var(--surface-3); }
+    .lb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .lb-btn svg { width: 18px; height: 18px; }
+    .lb-caption {
+      position: absolute; inset: auto 0 0; z-index: 1; pointer-events: none; margin: 0;
+      padding: .75rem; text-align: center; color: var(--text-dim); font-size: .9rem;
+      display: grid; justify-items: center;
+    }
+    .lb-caption > span { pointer-events: auto; display: grid; gap: .15rem; padding: .5rem .9rem; max-width: 40rem; }
+    .lb-stage.actual ~ .lb-caption { display: none; }
+    .lb-hint { font-size: .78rem; color: var(--text-faint); }
+    .lb-hint .touch { display: none; }
+    @media (hover: none) { .lb-hint .touch { display: inline; } .lb-hint .mouse { display: none; } }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
     /* ---------- sections ---------- */
     section { padding: 7rem 0 0; }
@@ -351,14 +411,11 @@
       .copy { display: none; }
       .tabs button { padding: .5rem .65rem; font-size: .82rem; gap: .35rem; }
       .tabs button svg { display: none; }
-      .phones { gap: 4%; }
-      .phone { height: 92%; }
       .value { grid-template-columns: 1fr; gap: .6rem; padding: 1.5rem 0; }
       .clients { grid-template-columns: 1fr; }
       th, td { padding: .75rem .6rem; font-size: .8rem; }
       th:first-child, td:first-child { padding-left: .9rem; }
       thead th { font-size: .62rem; letter-spacing: .06em; }
-      .phone { border-width: 3px; }
       section { padding-top: 5rem; }
     }
     @media (max-width: 1100px) {
@@ -410,6 +467,9 @@
     @media print { .yaks, .buzzer, .buzzer.show { display: none; } }
     @keyframes buzz { 0%, 100% { transform: translate(.8px, -.6px); } 50% { transform: translate(-.8px, .6px); } }
 
+    @media (max-width: 340px) {
+      .tabs button { padding: .45rem .5rem; font-size: .78rem; }
+    }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; animation: none !important; }
       html { scroll-behavior: auto; }
@@ -475,7 +535,7 @@
 
       <div class="showcase" id="tour">
         <div class="tabs" role="tablist" aria-label="Product tour">
-          <button role="tab" aria-selected="true" aria-controls="panel-chat" id="tab-chat" data-caption="Drive each agent from a chat pane: prompts, tool calls, and diffs, rendered cleanly.">
+          <button role="tab" aria-selected="true" aria-controls="panel-chat" id="tab-chat" data-caption="Drive each agent from a chat pane: prompts, tool calls, and its summary of what changed.">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Chat
           </button>
           <button role="tab" aria-selected="false" aria-controls="panel-terminal" id="tab-terminal" tabindex="-1" data-caption="Or from its native terminal UI. Pick per workspace.">
@@ -484,27 +544,43 @@
           <button role="tab" aria-selected="false" aria-controls="panel-review" id="tab-review" tabindex="-1" data-caption="Review each workspace's changes against its base branch.">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14"/><path d="M5 10h14"/><path d="M5 21h14"/></svg>Review
           </button>
-          <button role="tab" aria-selected="false" aria-controls="panel-phone" id="tab-phone" tabindex="-1" data-caption="The same app on your phone, over Tailscale.">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>Phone
+          <button role="tab" aria-selected="false" aria-controls="panel-preview" id="tab-preview" tabindex="-1" data-caption="In the desktop app, preview each agent's dev server right next to its chat.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>Preview
           </button>
         </div>
-        <p class="caption" aria-live="polite">Drive each agent from a chat pane: prompts, tool calls, and diffs, rendered cleanly.</p>
+        <p class="caption" aria-live="polite">Drive each agent from a chat pane: prompts, tool calls, and its summary of what changed.</p>
         <div class="stage">
           <div class="frame">
+            <button class="zoom" type="button" aria-label="View screenshot full size">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+            </button>
             <div class="panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat">
-              <img src="assets/show-chat.webp" width="2400" height="1521" alt="yaac with several workspaces in the sidebar, two running, and an OpenCode chat showing the diff it made to the README">
+              <img srcset="assets/show-chat-1110.webp 1110w, assets/show-chat-2220.webp 2220w" src="assets/show-chat-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-chat.webp" width="2748" height="1800" alt="yaac with workspaces in two groups, two of them running and two queued, and an OpenCode chat summarizing the light theme it added">
             </div>
             <div class="panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal" hidden>
-              <img src="assets/show-terminal.webp" width="2400" height="1521" alt="The same task in OpenCode's terminal UI" loading="lazy">
+              <img data-srcset="assets/show-terminal-1110.webp 1110w, assets/show-terminal-2220.webp 2220w" data-src="assets/show-terminal-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-terminal.webp" width="2748" height="1800" alt="An OpenCode workspace in terminal mode, showing its FAQ redesign and diff">
             </div>
             <div class="panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
-              <img src="assets/show-review.webp" width="2400" height="1521" alt="The Changes view: README.md with five added lines highlighted" loading="lazy">
+              <img data-srcset="assets/show-review-1110.webp 1110w, assets/show-review-2220.webp 2220w" data-src="assets/show-review-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-review.webp" width="2748" height="1800" alt="The chat beside the Changes pane, showing the light theme's diff to index.html">
             </div>
-            <div class="panel phones" role="tabpanel" id="panel-phone" aria-labelledby="tab-phone" hidden>
-              <div class="phone"><img src="assets/phone-list.webp" width="786" height="1318" alt="The workspace list on a phone" loading="lazy"></div>
-              <div class="phone"><img src="assets/phone-chat.webp" width="786" height="1318" alt="An agent chat on a phone" loading="lazy"></div>
+            <div class="panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview" hidden>
+              <img data-srcset="assets/show-preview-1110.webp 1110w, assets/show-preview-2220.webp 2220w" data-src="assets/show-preview-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-preview.webp" width="2748" height="1800" alt="The chat beside a Preview pane showing the landing page in its new light theme">
             </div>
           </div>
+        <dialog class="lightbox" aria-label="Screenshot viewer">
+          <div class="lb-stage" tabindex="-1" autofocus><img class="lb-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" draggable="false"></div>
+          <div class="lb-bar">
+            <span class="lb-title"></span>
+            <div class="lb-actions">
+              <button class="lb-btn" type="button" data-step="-1" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+              <button class="lb-btn" type="button" data-step="1" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button class="lb-btn lb-fs" type="button" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+              <button class="lb-btn lb-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+            </div>
+          </div>
+          <p class="lb-caption"><span><span class="lb-text"></span><span class="lb-hint"><span class="mouse">Click the image to zoom · ← → to switch</span><span class="touch">Tap the image to zoom</span></span></span></p>
+          <p class="sr-only" aria-live="polite"></p>
+        </dialog>
         </div>
       </div>
     </div>
@@ -800,10 +876,21 @@
       })
     })
 
-    // Product tour tabs.
+    // Product tour tabs. Only the visible panel's image loads up front; the
+    // others load when their tab is chosen, or hovered or focused first.
     const tabs = [...document.querySelectorAll('.tabs [role="tab"]')]
     const caption = document.querySelector('.caption')
+    const panelImg = (tab) => document.querySelector(`#${tab.getAttribute('aria-controls')} img`)
+    function load(tab) {
+      const img = panelImg(tab)
+      if (!img.dataset.src) return
+      img.srcset = img.dataset.srcset
+      img.src = img.dataset.src
+      delete img.dataset.srcset
+      delete img.dataset.src
+    }
     function select(tab) {
+      load(tab)
       tabs.forEach((t) => {
         const on = t === tab
         t.setAttribute('aria-selected', on)
@@ -812,8 +899,153 @@
       })
       caption.textContent = tab.dataset.caption
     }
+
+    // Screenshot lightbox. It opens fitted to the window; clicking the image
+    // zooms in (to two CSS pixels per image pixel, or further on large screens)
+    // around the point clicked, and the arrows step through the tabs.
+    const box = document.querySelector('.lightbox')
+    const lbImg = box.querySelector('.lb-img')
+    const lbStage = box.querySelector('.lb-stage')
+    const lbTitle = box.querySelector('.lb-title')
+    const lbText = box.querySelector('.lb-text')
+    const lbLive = box.querySelector('[aria-live]')
+    const fsButton = box.querySelector('.lb-fs')
+    const current = () => tabs.find((t) => t.getAttribute('aria-selected') === 'true') ?? tabs[0]
+    let token = 0
+    let fullReady = false
+    const zoomed = () => lbStage.classList.contains('actual')
+    const decoded = (src) => { const i = new Image(); i.src = src; return i.decode().then(() => src) }
+
+    // The zoomed width, or 0 when zooming wouldn't make the image meaningfully larger.
+    function zoomWidth() {
+      if (!fullReady) return 0
+      const fitted = lbImg.getBoundingClientRect().width
+      const target = Math.max(lbImg.naturalWidth / 2, Math.min(lbImg.naturalWidth, fitted * 1.6))
+      return target > fitted * 1.1 ? target : 0
+    }
+    // On short, wide windows a height-fitted image would be smaller than the
+    // one on the page, so fit the width instead and let it scroll down.
+    function refit() {
+      const ratio = 2748 / 1800
+      const w = lbStage.clientWidth - 16
+      const h = lbStage.clientHeight - 16
+      lbStage.classList.toggle('fitw', !zoomed() && h * ratio < w * .8)
+    }
+    function refreshZoomable() {
+      refit()
+      lbStage.classList.toggle('zoomable', !zoomed() && zoomWidth() > 0)
+    }
+    function unzoom() {
+      lbStage.classList.remove('actual')
+      lbImg.style.width = ''
+      refreshZoomable()
+    }
+    // Zoom so the image point under (clientX, clientY) stays where it is.
+    function zoomAt(clientX, clientY) {
+      const width = zoomWidth()
+      if (!width) return
+      const before = lbImg.getBoundingClientRect()
+      const fx = (clientX - before.left) / before.width
+      const fy = (clientY - before.top) / before.height
+      lbStage.classList.add('actual')
+      lbStage.classList.remove('zoomable', 'fitw')
+      lbImg.style.width = `${width}px`
+      const after = lbImg.getBoundingClientRect()
+      lbStage.scrollLeft += after.left + fx * after.width - clientX
+      lbStage.scrollTop += after.top + fy * after.height - clientY
+    }
+    function zoomCenter() {
+      if (zoomed()) return unzoom()
+      const r = lbImg.getBoundingClientRect()
+      zoomAt(r.left + r.width / 2, r.top + r.height / 2)
+    }
+
+    // Swap in a tab's screenshot once it has decoded, so the image, title and
+    // caption change together; then upgrade to the full-size original.
+    async function show(tab) {
+      const t = ++token
+      load(tab)
+      const img = panelImg(tab)
+      const first = await decoded(img.currentSrc || img.src).catch(() => img.src)
+      if (t !== token) return
+      unzoom()
+      fullReady = false
+      lbImg.src = first
+      lbImg.alt = img.alt
+      lbTitle.textContent = tab.textContent.trim()
+      lbText.textContent = tab.dataset.caption
+      lbLive.textContent = `${tab.textContent.trim()} screenshot. ${tab.dataset.caption}`
+      refreshZoomable()
+      const full = await decoded(img.dataset.full).catch(() => null)
+      if (t !== token || !full) return
+      lbImg.src = full
+      fullReady = true
+      refreshZoomable()
+    }
+    function step(by) {
+      const next = tabs[(tabs.indexOf(current()) + by + tabs.length) % tabs.length]
+      select(next)
+      show(next)
+    }
+
+    document.querySelector('.frame').addEventListener('click', (e) => {
+      if (e.detail > 1) return
+      show(current())
+      box.showModal()
+      refreshZoomable()
+    })
+    box.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => step(Number(b.dataset.step))))
+    box.querySelector('.lb-close').addEventListener('click', () => box.close())
+    box.addEventListener('click', (e) => {
+      if (e.detail > 1) return
+      if (e.target === lbImg) {
+        if (zoomed()) unzoom()
+        else zoomAt(e.clientX, e.clientY)
+      } else if (e.target === lbStage || e.target === box) {
+        box.close()
+      }
+    })
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') box.classList.add('keys')
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (e.target.closest('button') && (e.key === 'Enter' || e.key === ' ')) return
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !zoomed()) {
+        e.preventDefault()
+        step(e.key === 'ArrowRight' ? 1 : -1)
+      } else if (e.key === 'Enter' || e.key === ' ' || e.key === 'z' || e.key === '+' || e.key === '=' || (e.key === '-' && zoomed())) {
+        e.preventDefault()
+        zoomCenter()
+      }
+    })
+    // Esc steps out of the zoom before it closes the viewer.
+    box.addEventListener('cancel', (e) => { if (zoomed()) { e.preventDefault(); unzoom() } })
+    addEventListener('resize', () => { if (box.open && !zoomed()) refreshZoomable() })
+
+    // Full screen covers the page, with the modal dialog still on top. (A
+    // dialog can't itself be made full screen.)
+    const root = document.documentElement
+    if (document.fullscreenEnabled && root.requestFullscreen) {
+      fsButton.addEventListener('click', () => {
+        (document.fullscreenElement ? document.exitFullscreen() : root.requestFullscreen()).catch(() => {})
+      })
+      document.addEventListener('fullscreenchange', () => {
+        fsButton.setAttribute('aria-label', document.fullscreenElement ? 'Exit full screen' : 'Full screen')
+        if (box.open && !zoomed()) requestAnimationFrame(refreshZoomable)
+      })
+    } else {
+      fsButton.hidden = true
+    }
+    box.addEventListener('close', () => {
+      token++
+      box.classList.remove('keys')
+      unzoom()
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    })
+
     tabs.forEach((t, i) => {
       t.addEventListener('click', () => select(t))
+      t.addEventListener('pointerenter', () => load(t))
+      t.addEventListener('focus', () => load(t))
       t.addEventListener('keydown', (e) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
         const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]
