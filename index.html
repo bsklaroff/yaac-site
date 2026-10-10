@@ -472,9 +472,7 @@
     .buzzer { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; display: none; }
     .buzzer.show { display: block; }
     .buzzer svg { display: block; }
-    .buzzer.on svg { animation: buzz .06s linear infinite !important; } /* buzzes even with reduced motion */
     @media print { .yaks, .buzzer, .buzzer.show { display: none; } }
-    @keyframes buzz { 0%, 100% { transform: translate(.8px, -.6px); } 50% { transform: translate(-.8px, .6px); } }
 
     @media (max-width: 340px) {
       .tabs button { padding: .45rem .5rem; font-size: .78rem; }

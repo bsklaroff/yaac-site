@@ -27,11 +27,12 @@
   const EAR = new Path2D('M10 -4C2 -10 -10 -10 -16 -4C-10 0 0 2 10 2Z')
   const NECK = { x: 72, y: -98 }
   const TAIL = { x: -84, y: -92 }
+  // A four-beat walk: each hind foot steps, then the fore foot on its side.
   const LEGS = [
-    { x: 46, y: -50, off: Math.PI, near: false },
-    { x: -50, y: -52, off: 0, near: false },
-    { x: 56, y: -52, off: 0, near: true },
-    { x: -60, y: -54, off: Math.PI, near: true },
+    { x: 46, y: -50, off: 0, near: false },
+    { x: -50, y: -52, off: Math.PI / 2, near: false },
+    { x: 56, y: -52, off: Math.PI, near: true },
+    { x: -60, y: -54, off: Math.PI * 1.5, near: true },
   ]
   const STUB = 2.5 // a strand this short is stubble
   const RADIUS = 15 // clipper reach, in CSS pixels
@@ -124,8 +125,8 @@
       x, y, pal, patches, blaze: pied, styles: [],
       tail: [], under: [], over: [], fluff: [], head: [], all: [],
       face: 1, faceTo: 1, state: 'idle', timer: rand(0, 2), target: null, tuft: null,
-      scale: 1, sx: 1, drawY: y, speed: rand(40, 55), walk: 0, phase: 0, ha: .15,
-      tailA: .3, tailT: 0, sway: .05, swayT: 0, lag: 0, hop: 0,
+      scale: 1, sx: 1, speed: rand(40, 55), walk: 0, phase: 0, ha: .15,
+      tailA: .3, tailT: 0, sway: .05, swayT: 0, lag: 0,
       seed: rand(0, TAU), blinkAt: rand(1, 5), fx: [], litter: null, sprite: null, visible: false, layers: {}, layerK: 0, coatDirty: true, tailDirty: true, headHa: null, heartT: 0, say: null, naked: false, hovered: false,
     }
     const styleOf = (color, w) => {
@@ -311,7 +312,7 @@
   const litters = []
   let clippingCount = 0
 
-  const toPage = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.drawY + y * yak.scale]
+  const toPage = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.y + y * yak.scale]
   const inView = (y, above, below) => y + below > scrollY && y - above < scrollY + H
 
   function makeSprite() {
@@ -353,24 +354,24 @@
     ctx.setTransform(dpr, 0, 0, dpr, -left * dpr, -top * dpr)
   }
 
-  function drawLeg(yak, leg, bob, t) {
+  function drawLeg(yak, leg, bob) {
     let a = 0
     let bend = 0
     if (yak.walk > .01) {
+      // The leg sweeps back at a steady rate while planted (cos > 0), so on a
+      // level walk the hoof keeps pace with the ground, then lifts and swings
+      // forward.
       const p = yak.phase + leg.off
-      a = Math.sin(p) * .32 * yak.walk
-      bend = Math.max(0, Math.cos(p)) * .7 * yak.walk
-    }
-    if (leg.near && leg.x < 0 && yak.state === 'enjoy') {
-      // A happy back-leg thump, like a dog having its ear scratched.
-      a = -.3 + Math.sin(t * 18) * .25
-      bend = .6
+      a = Math.asin(Math.sin(p)) * 2 / Math.PI * .32 * yak.walk
+      bend = Math.max(0, -Math.cos(p)) * .7 * yak.walk
     }
     const jy = leg.y + bob
     const kx = leg.x - Math.sin(a) * 26
     const ky = jy + Math.cos(a) * 26
     const fx = kx - Math.sin(a + bend) * 25
-    const fy = ky + Math.cos(a + bend) * 25
+    // The hoof stays on the ground, whatever the bob and the leg's angle,
+    // until the knee bends to lift it (never into it).
+    const fy = leg.y + 51 - Math.max(0, Math.cos(a) - Math.cos(a + bend)) * 25
     ctx.strokeStyle = leg.near ? yak.pal.fur : yak.pal.furDark
     ctx.lineCap = 'round'
     ctx.lineWidth = 14
@@ -513,7 +514,6 @@
     const s = yak.scale
     const pal = yak.pal
     yak.sx = Math.sign(yak.face || 1) * Math.max(.06, Math.abs(yak.face))
-    yak.drawY = yak.y - yak.hop * s
     const bones = yak.bones = pose(yak)
     const bob = bones[0].y
 
@@ -549,15 +549,15 @@
     ctx.beginPath(); ctx.ellipse(yak.x, yak.y, 86 * s * Math.max(.35, Math.abs(yak.sx)), 8 * s, 0, 0, TAU); ctx.fill()
 
     ctx.save()
-    const shiver = yak.state === 'shiver' ? Math.sin(t * 60) * .8 : 0
-    ctx.translate(yak.x, yak.drawY)
+    const shiver = yak.state === 'shiver' ? Math.sin(t * 60) * .6 : 0
+    ctx.translate(yak.x, yak.y)
     ctx.scale(s * yak.sx, s)
     ctx.translate(shiver, 0)
     if (yak.state === 'shake') {
-      ctx.translate(0, -60); ctx.rotate(Math.sin(t * 24) * .04); ctx.translate(0, 60)
+      ctx.translate(0, -60); ctx.rotate(Math.sin(t * 24) * .02); ctx.translate(0, 60)
     }
 
-    for (const leg of LEGS) if (!leg.near) drawLeg(yak, leg, bob, t)
+    for (const leg of LEGS) if (!leg.near) drawLeg(yak, leg, bob)
 
     // Tail stub, then its plume.
     const tb = bones[2]
@@ -612,7 +612,7 @@
     ctx.moveTo(56, -116 + bob); ctx.lineTo(...hp(2, -17)); ctx.lineTo(...hp(-2, 14)); ctx.lineTo(78, -60 + bob)
     ctx.fill()
 
-    for (const leg of LEGS) if (leg.near) drawLeg(yak, leg, bob, t)
+    for (const leg of LEGS) if (leg.near) drawLeg(yak, leg, bob)
 
     ctx.translate(0, bob)
     stamp(yak, 'coat', COAT_BOX, skew, -120)
@@ -721,7 +721,7 @@
     if (yak.fx.length || yak.state === 'shake' || yak.state === 'shiver' || yak.coatDirty || yak.tailDirty) return null
     const r = (v, k) => Math.round(v * k)
     return [
-      r(yak.x, 4), r(yak.y - yak.hop * yak.scale, 4), r(yak.face, 100), r(yak.scale, 1000), dpr, yak.state,
+      r(yak.x, 4), r(yak.y, 4), r(yak.face, 100), r(yak.scale, 1000), dpr, yak.state,
       r(yak.ha, 100), r(yak.tailA, 50), r(yak.phase, 20), r(yak.walk, 50), r(skewOf(yak), 200),
       r(earAt(yak, t), 50), r(chewAt(yak, t), 2), t < yak.blinkUntil, yak.say && t < yak.say.until ? yak.say.text : '',
     ].join()
@@ -738,7 +738,7 @@
       if (look && look === yak.look) continue
       yak.look = look
       yak.sprite ??= makeSprite()
-      const [l, tp, r, b] = yakBox(yak, yak.x, yak.y - yak.hop * yak.scale)
+      const [l, tp, r, b] = yakBox(yak, yak.x, yak.y)
       begin(yak.sprite, l, tp, r, b, yak.y)
       drawYak(yak, t)
       drawEffects(yak.fx)
@@ -880,16 +880,29 @@
     yak.rush = false
   }
 
+  // A yak ambles onward, across the page more than up or down it. With the
+  // way ahead blocked it turns back, but only for a good long walk, so it
+  // doesn't pace to and fro in a narrow gap. Boxed in both ways, it climbs
+  // steeply out, still mostly the way it faces.
+  const WANDERS = [
+    { tries: 20, back: 0, slope: .45, min: 100 },
+    { tries: 10, back: 1, slope: .45, min: 200 },
+    { tries: 20, back: .25, slope: 1.1, min: 100 },
+  ]
+
   function wander(yak) {
-    for (let i = 0; i < 30; i++) {
-      const a = rand(0, TAU)
-      const d = rand(120, 700)
-      const x = yak.x + Math.cos(a) * d
-      const y = yak.y + Math.sin(a) * d * .6
-      if (roomAt(x, y, yak.scale) && pathClear(yak.x, yak.y, x, y, yak.scale)) {
-        yak.target = { x, y }
-        setState(yak, 'walk', 40)
-        return true
+    for (const w of WANDERS) {
+      for (let i = 0; i < w.tries; i++) {
+        const dir = Math.random() < w.back ? -yak.faceTo : yak.faceTo
+        const a = rand(-w.slope, w.slope)
+        const d = rand(w.min, 350)
+        const x = yak.x + Math.cos(a) * d * dir
+        const y = yak.y + Math.sin(a) * d * .6
+        if (roomAt(x, y, yak.scale) && pathClear(yak.x, yak.y, x, y, yak.scale)) {
+          yak.target = { x, y }
+          setState(yak, 'walk', 40)
+          return true
+        }
       }
     }
     return false
@@ -949,13 +962,18 @@
       return setState(yak, 'shiver', 1)
     }
     const r = Math.random()
-    if (r < .62 && wander(yak)) return
-    if (r < .84) {
+    if (r < .3 && wander(yak)) return
+    if (r < .6) {
       let tuft = null
-      let best = 800
+      let best = 400
       for (const tf of tufts) {
         if (!tf.stand) continue
-        const d = Math.hypot(tf.stand.x - yak.x, tf.stand.y - yak.y)
+        // Grass up or down the page, or that means turning around on the way
+        // or once there, counts as farther off.
+        const dx = tf.stand.x - yak.x
+        const heading = Math.abs(dx) > 3 ? Math.sign(dx) : yak.faceTo
+        const turns = (heading !== yak.faceTo) + (tf.dir !== heading)
+        const d = Math.hypot(dx, (tf.stand.y - yak.y) * 2.5) + turns * 250
         if (!tf.claimed && tf.amount > .5 && d < best && pathClear(yak.x, yak.y, tf.stand.x, tf.stand.y, yak.scale)) { best = d; tuft = tf }
       }
       if (tuft) {
@@ -977,7 +995,7 @@
       yak.tuft = tf
       return setState(yak, 'graze', tf.amount / .1 + 1.5)
     }
-    if (r < .92) return setState(yak, 'idle', rand(1, 2.5))
+    if (r < .92) return setState(yak, 'idle', rand(2.5, 6))
     if (r < .96) return setState(yak, 'shake', 1.2)
     say(yak, pick(['*grunt*', 'hrmph', 'mrrrh']), t)
     return setState(yak, 'idle', 2)
@@ -989,7 +1007,6 @@
     if (yak.hovered && yak.state === 'walk' && !yak.rush) { release(yak); setState(yak, 'idle', 1.5) }
     let walking = false
     let headTo = .12 + Math.sin(t * .6 + yak.seed) * .12
-    yak.hop = 0
     switch (yak.state) {
       case 'walk': {
         const dx = yak.target.x - yak.x
@@ -1009,7 +1026,8 @@
         const step = Math.min(d, yak.speed * yak.scale * (turning ? .3 : 1) * (yak.rush ? 2.5 : 1) * dt)
         yak.x += dx / d * step
         yak.y += dy / d * step
-        yak.phase += step / yak.scale * (yak.rush ? .07 : .11)
+        // A planted hoof travels about 32 units per half cycle.
+        yak.phase += step / yak.scale * .1
         walking = true
         break
       }
@@ -1037,7 +1055,6 @@
         break
       case 'celebrate':
         headTo = -.3
-        if (yak.timer > .3) yak.hop = Math.abs(Math.sin(t * 9)) * 7
         if (Math.random() < dt * 5) sparkle(yak)
         break
       case 'shake':
@@ -1051,12 +1068,12 @@
     const happy = yak.state === 'enjoy' || yak.state === 'celebrate'
     yak.walk = approach(yak.walk, walking ? 1 : 0, dt * 4)
     yak.ha = approach(yak.ha, headTo, dt * 3)
-    yak.face = toward(yak.face, yak.faceTo, dt * 3.2)
-    yak.sway = approach(yak.sway, shaking ? .5 : happy ? .15 : .05, dt * 5)
+    yak.face = toward(yak.face, yak.faceTo, dt * 5)
+    yak.sway = approach(yak.sway, shaking ? .2 : happy ? .15 : .05, dt * 5)
     yak.swayT += dt * (shaking ? 22 : 2.2)
     yak.lag = approach(yak.lag, -.3 * yak.walk, dt * 2)
-    yak.tailT += dt * (happy ? 16 : 1.4)
-    yak.tailA = .3 + Math.sin(yak.tailT + yak.seed) * (happy ? .35 : .18)
+    yak.tailT += dt * (happy ? 5 : 1.4)
+    yak.tailA = .3 + Math.sin(yak.tailT + yak.seed) * (happy ? .24 : .18)
   }
 
   // Cut every strand that passes under the clippers, keeping the part above
@@ -1073,7 +1090,7 @@
     layOut(yak)
     const s = yak.scale
     const lx = (px - yak.x) / (s * yak.sx)
-    const ly = (py - yak.drawY) / s
+    const ly = (py - yak.y) / s
     const r2 = (RADIUS / s) ** 2
     let dropped = 0
     for (const st of yak.all) {
@@ -1224,11 +1241,11 @@
   function hitYak(yak, px, py) {
     const s = yak.scale
     if (!yak.visible || Math.abs(yak.sx) < .3) return false
-    if (Math.abs(px - yak.x) > 140 * s || py > yak.drawY + 6 * s || py < yak.drawY - 175 * s) return false
+    if (Math.abs(px - yak.x) > 140 * s || py > yak.y + 6 * s || py < yak.y - 175 * s) return false
     if (!yak.bones) return false // never drawn yet, so nothing on screen to hit
     layOut(yak)
     const lx = (px - yak.x) / (s * yak.sx)
-    const ly = (py - yak.drawY) / s
+    const ly = (py - yak.y) / s
     if (inBody(lx, ly - yak.bones[0].y)) return true
     const h = yak.bones[1]
     const hx = lx - h.x
@@ -1321,7 +1338,6 @@
     for (const y of yaks) y.hovered = y === yak
     document.documentElement.classList.toggle('buzz', !!yak)
     buzzer.classList.toggle('show', !!yak)
-    buzzer.classList.toggle('on', !!yak && pointer.down)
     if (yak && pointer.down && t - lastShave > .07) {
       lastShave = t
       shave(yak, pointer.x + scrollX, pointer.y + scrollY, t)
