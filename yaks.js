@@ -37,8 +37,10 @@
   const RADIUS = 15 // clipper reach, in CSS pixels
   // Opaque parts of the page: yaks never stand behind them, and they take the
   // pointer from any yak that does end up there.
-  const OPAQUE = '.frame, .card, .arch, .table, .term, .tabs, .btn, .phone, img, footer'
-  const BLOCK = `a, button, summary, input, textarea, select, nav, ${OPAQUE}`
+  const OPAQUE = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, footer'
+  const BLOCK = `a, button, summary, input, textarea, select, nav, dialog, ${OPAQUE}`
+  // A modal dialog (the screenshot viewer) covers the page: yaks pause and can't be shaved through it.
+  const modalOpen = () => { try { return !!document.querySelector('dialog:modal') } catch { return !!document.querySelector('dialog[open]') } }
 
   const PALETTES = [
     { // wild black
@@ -792,14 +794,14 @@
     // The sticky nav sits over whatever scrolls under it, so keep the top clear.
     mark(0, 0, field.w, document.querySelector('nav')?.offsetHeight ?? 62, 8)
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => (n.data.trim() && !n.parentElement.closest('script, style, nav') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+      acceptNode: (n) => (n.data.trim() && !n.parentElement.closest('script, style, nav, dialog') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
     })
     const range = document.createRange()
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       range.selectNodeContents(n)
       for (const rect of range.getClientRects()) add(rect, 12)
     }
-    for (const el of document.querySelectorAll(PANES)) if (!el.closest('nav')) add(el.getBoundingClientRect(), 12)
+    for (const el of document.querySelectorAll(PANES)) if (!el.closest('nav, dialog')) add(el.getBoundingClientRect(), 12)
 
     const C = cols + 1
     taken = new Int32Array(C * (rows + 1))
@@ -1253,6 +1255,7 @@
 
   // The front-most yak under a viewport point, unless page content is in the way.
   function yakAt(cx, cy) {
+    if (modalOpen()) return null
     const px = cx + scrollX
     const py = cy + scrollY
     const hit = [...yaks].sort((a, b) => b.y - a.y).find((yak) => hitYak(yak, px, py))
@@ -1511,6 +1514,14 @@
   let last = performance.now()
   let frameNo = 0
   function frame(now) {
+    if (modalOpen()) {
+      // Paused under the viewer: just the slow tick, nothing drawn. The pause
+      // isn't a frame gap, and the next pointer move after it closes wakes it.
+      last = now
+      perf.skip = true
+      updateHover(now / 1000)
+      return schedule(false)
+    }
     let busy = false
     try {
       const ms = now - last
