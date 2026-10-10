@@ -144,6 +144,47 @@
     }
     .panel { position: absolute; inset: 0; transition: opacity .35s ease, visibility .35s; }
     .panel[hidden] { display: block; opacity: 0; visibility: hidden; pointer-events: none; }
+    .frame { cursor: zoom-in; }
+    .zoom {
+      position: absolute; top: .75rem; right: .75rem; z-index: 2;
+      width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
+      border-radius: 9px; border: 1px solid var(--hairline); color: var(--text);
+      background: color-mix(in srgb, var(--surface-2) 85%, transparent); backdrop-filter: blur(8px);
+      opacity: 0; transition: opacity .2s ease, background .15s ease;
+    }
+    .zoom svg { width: 17px; height: 17px; }
+    .frame:hover .zoom, .zoom:focus-visible { opacity: 1; }
+    .zoom:hover { background: var(--surface-3); }
+    .zoom:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (hover: none) { .zoom { opacity: 1; } }
+    html:has(.lightbox[open]) { overflow: hidden; }
+    .lightbox {
+      width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+      background: rgb(8 8 10 / .97); backdrop-filter: blur(6px); color: var(--text); text-align: left;
+    }
+    .lightbox[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; animation: lb-in .2s ease; }
+    .lightbox::backdrop { background: transparent; }
+    @keyframes lb-in { from { opacity: 0; } }
+    .lb-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; }
+    .lb-title { font-weight: 600; font-size: .95rem; }
+    .lb-actions { display: flex; gap: .4rem; }
+    .lb-btn {
+      width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; color: var(--text);
+      border-radius: 9px; border: 1px solid var(--hairline); background: var(--surface);
+    }
+    .lb-btn:hover { background: var(--surface-3); }
+    .lb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .lb-btn svg { width: 18px; height: 18px; }
+    .lb-stage { overflow: auto; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 0 1rem; overscroll-behavior: contain; outline: none; }
+    .lb-img {
+      max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; cursor: zoom-in;
+      border-radius: 10px; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .8), 0 0 0 1px var(--hairline);
+    }
+    .lb-stage.actual { place-items: start; }
+    .lb-stage.actual .lb-img { max-width: none; max-height: none; cursor: zoom-out; margin: auto; }
+    .lb-caption { margin: 0; padding: .75rem 1rem 1rem; text-align: center; color: var(--text-dim); font-size: .92rem; display: grid; gap: .2rem; }
+    .lb-hint { font-size: .78rem; color: var(--text-faint); }
+    .lightbox:fullscreen .lb-stage { padding: 0 .5rem; }
     .panel > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top left; }
 
     /* ---------- sections ---------- */
@@ -472,6 +513,9 @@
         <p class="caption" aria-live="polite">Drive each agent from a chat pane: prompts, tool calls, and diffs, rendered cleanly.</p>
         <div class="stage">
           <div class="frame">
+            <button class="zoom" type="button" aria-label="View screenshot full size">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+            </button>
             <div class="panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat">
               <img src="assets/show-chat.webp" width="2748" height="1800" alt="yaac with workspaces in two groups, two of them running and two queued, and an OpenCode chat summarizing the light theme it added">
             </div>
@@ -485,6 +529,19 @@
               <img src="assets/show-preview.webp" width="2748" height="1800" alt="The chat beside a Preview pane showing the landing page in its new light theme" loading="lazy">
             </div>
           </div>
+        <dialog class="lightbox" aria-label="Screenshot viewer">
+          <div class="lb-bar">
+            <span class="lb-title"></span>
+            <div class="lb-actions">
+              <button class="lb-btn" type="button" data-step="-1" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+              <button class="lb-btn" type="button" data-step="1" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button class="lb-btn lb-fs" type="button" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+              <button class="lb-btn lb-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+            </div>
+          </div>
+          <div class="lb-stage" tabindex="-1" autofocus><img class="lb-img" alt=""></div>
+          <p class="lb-caption"><span class="lb-text"></span><span class="lb-hint"></span></p>
+        </dialog>
         </div>
       </div>
     </div>
@@ -792,6 +849,59 @@
       })
       caption.textContent = tab.dataset.caption
     }
+    // Screenshot lightbox: fit to the window, click the image for actual size,
+    // arrows step through the tabs, and the browser's fullscreen on request.
+    const box = document.querySelector('.lightbox')
+    const lbImg = box.querySelector('.lb-img')
+    const lbStage = box.querySelector('.lb-stage')
+    const lbTitle = box.querySelector('.lb-title')
+    const lbCaption = box.querySelector('.lb-text')
+    box.querySelector('.lb-hint').textContent = matchMedia('(hover: none)').matches ? 'Tap the image to zoom' : 'Click the image to zoom · ← → to switch'
+    const fsButton = box.querySelector('.lb-fs')
+    const current = () => tabs.find((t) => t.getAttribute('aria-selected') === 'true') ?? tabs[0]
+    function show(tab) {
+      const img = document.querySelector(`#${tab.getAttribute('aria-controls')} img`)
+      lbStage.classList.remove('actual')
+      lbImg.style.width = ''
+      lbImg.src = img.currentSrc || img.src
+      lbImg.alt = img.alt
+      lbTitle.textContent = tab.textContent.trim()
+      lbCaption.textContent = tab.dataset.caption
+    }
+    function step(by) {
+      const next = tabs[(tabs.indexOf(current()) + by + tabs.length) % tabs.length]
+      select(next)
+      show(next)
+    }
+    function openBox() { show(current()); box.showModal() }
+    document.querySelector('.frame').addEventListener('click', openBox)
+    box.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => step(Number(b.dataset.step))))
+    box.querySelector('.lb-close').addEventListener('click', () => box.close())
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); step(e.key === 'ArrowRight' ? 1 : -1) }
+    })
+    // A click on the dark area around the image closes; on the image, zooms.
+    box.addEventListener('click', (e) => {
+      if (!e.target.closest('.lb-img, button')) { box.close(); return }
+      if (e.target !== lbImg) return
+      const actual = lbStage.classList.toggle('actual')
+      // The screenshots are 2x captures; "actual size" is one image pixel per two CSS pixels.
+      lbImg.style.width = actual ? `${lbImg.naturalWidth / 2}px` : ''
+      if (actual) {
+        const r = lbImg.getBoundingClientRect()
+        lbStage.scrollTo({ left: (lbImg.scrollWidth - lbStage.clientWidth) * (e.offsetX / r.width || 0), top: 0 })
+      }
+    })
+    if (box.requestFullscreen) {
+      fsButton.addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : box.requestFullscreen()).catch(() => {}))
+      document.addEventListener('fullscreenchange', () => {
+        fsButton.setAttribute('aria-label', document.fullscreenElement ? 'Exit full screen' : 'Full screen')
+      })
+    } else {
+      fsButton.hidden = true
+    }
+    box.addEventListener('close', () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}) })
+
     tabs.forEach((t, i) => {
       t.addEventListener('click', () => select(t))
       t.addEventListener('keydown', (e) => {
