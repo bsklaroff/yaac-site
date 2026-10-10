@@ -2,7 +2,7 @@
 
 Landing page for [bsklaroff/yaac](https://github.com/bsklaroff/yaac), served with GitHub Pages.
 
-It is a single static `index.html` with no build step. To publish, enable Pages under **Settings → Pages** with source **Deploy from a branch**, branch `main`, folder `/ (root)`.
+It is a static `index.html`, plus `yaks.js` for the shaveable yaks that roam the background, with no build step. To publish, enable Pages under **Settings → Pages** with source **Deploy from a branch**, branch `main`, folder `/ (root)`.
 
 Preview locally:
 
