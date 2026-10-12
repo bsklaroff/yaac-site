@@ -186,8 +186,6 @@
       max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
       border-radius: 10px; box-shadow: 0 0 0 1px var(--hairline);
     }
-    .lb-stage.fitw { place-items: start center; }
-    .lb-stage.fitw .lb-img { max-height: none; width: 100%; }
     .lb-stage.zoomable .lb-img { cursor: zoom-in; }
     .lb-stage.actual { place-items: start; }
     .lb-stage.actual .lb-img { max-width: none; max-height: none; cursor: zoom-out; margin: auto; }
@@ -930,16 +928,7 @@
       const target = Math.max(lbImg.naturalWidth / 2, Math.min(lbImg.naturalWidth, fitted * 1.6))
       return target > fitted * 1.1 ? target : 0
     }
-    // On short, wide windows a height-fitted image would be smaller than the
-    // one on the page, so fit the width instead and let it scroll down.
-    function refit() {
-      const ratio = 2748 / 1800
-      const w = lbStage.clientWidth - 16
-      const h = lbStage.clientHeight - 16
-      lbStage.classList.toggle('fitw', !zoomed() && h * ratio < w * .8)
-    }
     function refreshZoomable() {
-      refit()
       lbStage.classList.toggle('zoomable', !zoomed() && zoomWidth() > 0)
     }
     function unzoom() {
@@ -955,7 +944,7 @@
       const fx = (clientX - before.left) / before.width
       const fy = (clientY - before.top) / before.height
       lbStage.classList.add('actual')
-      lbStage.classList.remove('zoomable', 'fitw')
+      lbStage.classList.remove('zoomable')
       lbImg.style.width = `${width}px`
       const after = lbImg.getBoundingClientRect()
       lbStage.scrollLeft += after.left + fx * after.width - clientX
