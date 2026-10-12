@@ -1,0 +1,2 @@
+- **NEVER take credit for authoring code** — do not add "Co-Authored-By" lines, or any other AI attribution to commit messages, PR descriptions, or code comments
+- Limit all git commit message lines to 80 characters maximum.
