@@ -1299,45 +1299,41 @@
   }, { passive: true })
   document.documentElement.addEventListener('mouseleave', () => { pointer.inside = false })
 
-  // A mouse shaves on press, and keeps shaving while held. A finger shaves
-  // only on a tap, so a swipe that starts on a yak just scrolls the page.
-  let tap = null
+  // A press on a yak shaves, and keeps shaving while held and dragged, with a
+  // mouse or a finger. A press anywhere else does what it always does.
   addEventListener('pointerdown', (e) => {
     if (dead || e.button !== 0) return
     const yak = yakAt(e.clientX, e.clientY)
     if (!yak) return
-    if (e.pointerType !== 'mouse') {
-      tap = { id: e.pointerId, x: e.clientX, y: e.clientY }
-      return
-    }
     // Holding the clippers shouldn't select text. Cancelling the press also
     // keeps focus where it was, so move it off as a click on the page would.
     e.preventDefault()
     document.activeElement?.blur()
+    pointer.x = e.clientX
+    pointer.y = e.clientY
+    pointer.inside = true
+    pointer.mouse = e.pointerType === 'mouse'
     pointer.down = true
     lastShave = performance.now() / 1000
     shave(yak, e.clientX + scrollX, e.clientY + scrollY, lastShave)
   })
-  addEventListener('pointerup', (e) => {
-    pointer.down = false
-    if (dead || !tap || tap.id !== e.pointerId) return
-    const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y)
-    tap = null
-    const yak = moved < 10 && yakAt(e.clientX, e.clientY)
-    if (yak) shave(yak, e.clientX + scrollX, e.clientY + scrollY, performance.now() / 1000)
-  })
-  for (const type of ['pointercancel', 'contextmenu', 'blur']) {
-    addEventListener(type, () => {
-      pointer.down = false
-      tap = null
-    })
+  // A finger dragged from a yak would scroll the page instead, and only the
+  // touch's own start can stop that.
+  addEventListener('touchstart', (e) => {
+    if (dead || e.touches.length !== 1) return
+    const touch = e.touches[0]
+    if (yakAt(touch.clientX, touch.clientY)) e.preventDefault()
+  }, { passive: false })
+  for (const type of ['pointerup', 'pointercancel', 'contextmenu', 'blur']) {
+    addEventListener(type, () => { pointer.down = false })
   }
 
+  // A mouse hovers; a finger only counts while it's pressed down.
   function updateHover(t) {
-    const yak = pointer.inside && pointer.mouse ? yakAt(pointer.x, pointer.y) : null
+    const yak = pointer.inside && (pointer.mouse || pointer.down) ? yakAt(pointer.x, pointer.y) : null
     for (const y of yaks) y.hovered = y === yak
-    document.documentElement.classList.toggle('buzz', !!yak)
-    buzzer.classList.toggle('show', !!yak)
+    document.documentElement.classList.toggle('buzz', !!yak && pointer.mouse)
+    buzzer.classList.toggle('show', !!yak && pointer.mouse)
     if (yak && pointer.down && t - lastShave > .07) {
       lastShave = t
       shave(yak, pointer.x + scrollX, pointer.y + scrollY, t)
@@ -1377,8 +1373,9 @@
   // against the display's pace: the shortest gap between frames seen so far,
   // so a display or power mode that runs at 30 Hz isn't mistaken for a slow
   // machine.
+  // Every machine starts at full quality. (The core count is no guide: Safari
+  // on iOS always reports 2, even on the newest iPhone.)
   const perf = { recent: [], pace: Infinity, gap: 0, work: 0, slow: 0, fast: 0, every: 1, dprCap: 2, since: 0, skip: true }
-  if ((navigator.hardwareConcurrency || 8) <= 2) { perf.dprCap = 1; perf.every = 2 }
 
   function adapt(ms, work) {
     // The gap after a wake or a hidden tab isn't a frame; nor is a stray
