@@ -1365,9 +1365,9 @@
   }
 
   // Watch how the yaks run while they're on screen. If the machine can't keep
-  // up, drop to 1x resolution first, then draw the yaks at 1/2, 1/3 and 1/4
-  // of the display's rate; their behaviour still updates every frame. Each
-  // step is undone once things run smoothly again.
+  // up, lower the resolution a step at a time (3x, 2x, 1x) first, then draw
+  // the yaks at 1/2, 1/3 and 1/4 of the display's rate; their behaviour still
+  // updates every frame. Each step is undone once things run smoothly again.
   //
   // "Can't keep up" means our own work is heavy, or frames are dropping
   // against the display's pace: the shortest gap between frames seen so far,
@@ -1375,7 +1375,7 @@
   // machine.
   // Every machine starts at full quality. (The core count is no guide: Safari
   // on iOS always reports 2, even on the newest iPhone.)
-  const perf = { recent: [], pace: Infinity, gap: 0, work: 0, slow: 0, fast: 0, every: 1, dprCap: 2, since: 0, skip: true }
+  const perf = { recent: [], pace: Infinity, gap: 0, work: 0, slow: 0, fast: 0, every: 1, dprCap: 3, since: 0, skip: true }
 
   function adapt(ms, work) {
     // The gap after a wake or a hidden tab isn't a frame; nor is a stray
@@ -1408,12 +1408,12 @@
     perf.fast = fast ? perf.fast + ms : 0
     if (perf.slow > 3000) {
       perf.slow = 0
-      if (perf.dprCap > 1 && (devicePixelRatio || 1) > 1) { perf.dprCap = 1; resize() }
+      if (dpr > 1) { perf.dprCap = Math.ceil(dpr) - 1; resize() }
       else if (perf.every < 4) perf.every++
     } else if (perf.fast > 10000) {
       perf.fast = 0
       if (perf.every > 1) perf.every--
-      else if (perf.dprCap === 1) { perf.dprCap = 2; resize() }
+      else if (perf.dprCap < (devicePixelRatio || 1)) { perf.dprCap++; resize() }
     }
   }
 
