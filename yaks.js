@@ -1389,22 +1389,16 @@
     perf.since ||= now
     if (now - perf.since < 2000) return
     ms = Math.min(ms, 250)
-    // The display's pace: the quickest run of four frames in the last 2.5 s,
-    // averaged. It follows the browser when it drops to 30 Hz (power saving,
-    // say) or comes back, and a short run among slow frames keeps it honest.
-    // Frames arrive a few ms early or late (on iPhones especially), so a
-    // single gap after a late frame looks far quicker than the display; over
-    // four frames that mostly cancels out.
+    // The display's pace: the frame gap a quarter of the last 2.5 s's frames
+    // beat. It follows the browser when it drops to 30 Hz (power saving, say)
+    // or comes back, and stays put while up to three quarters of frames drop.
+    // Not the quickest gap: frames arrive a few ms early or late, and iPhones
+    // sometimes deliver a short burst well above 60 Hz, either of which made
+    // steady 60 Hz frames look like drops.
     perf.recent.push([now, ms])
     while (perf.recent[0][0] < now - 2500) perf.recent.shift()
-    const run = Math.min(4, perf.recent.length)
-    let sum = 0
-    perf.pace = Infinity
-    perf.recent.forEach(([, gap], i) => {
-      sum += gap
-      if (i >= run) sum -= perf.recent[i - run][1]
-      if (i >= run - 1) perf.pace = Math.min(perf.pace, sum / run)
-    })
+    const gaps = perf.recent.map((r) => r[1]).sort((a, b) => a - b)
+    perf.pace = gaps[Math.floor(gaps.length / 4)]
     perf.gap ||= ms
     perf.gap += (ms - perf.gap) * .05
     perf.work += (work - perf.work) * .05
@@ -1412,7 +1406,7 @@
     // the yaks are below 20 fps whatever the display.
     const why = [perf.work > 10 && 'work', perf.gap > perf.pace * 1.5 && 'drops', perf.gap > 50 && 'under 20 fps'].filter(Boolean)
     const slow = why.length > 0
-    const fast = perf.work < 4 && perf.gap < perf.pace * 1.15 && perf.gap < 40
+    const fast = perf.work < 4 && perf.gap < perf.pace * 1.25 && perf.gap < 40
     // Act on how long it's been slow or fast, not on single frames. Slowness
     // must outlast the pace window, so a drop to 30 Hz is learned first.
     perf.slow = slow ? perf.slow + ms : 0
@@ -1435,25 +1429,39 @@
   const hud = new URLSearchParams(location.search).has('perf') && document.createElement('pre')
   const steps = []
   let hudShown = 0
+  // When the page was last scrolled or touched, and how, since either can
+  // hold up frames that aren't ours.
+  const input = { at: -Infinity, type: '' }
   if (hud) {
     hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#fff;background:#000b;border-radius:6px;pointer-events:none;white-space:pre'
     document.body.append(hud)
+    for (const type of ['scroll', 'pointerdown', 'pointermove']) {
+      addEventListener(type, () => { input.at = performance.now(); input.type = type }, { passive: true })
+    }
   }
   function showPerf(now, why, was) {
     const is = `${dpr}x, 1/${perf.every}`
     const secs = ((now - perf.since) / 1000 + 2).toFixed(1)
-    if (is !== was) steps.unshift(`${secs}s ${was} → ${is}${why.length ? ` (${why.join(', ')})` : ''}`)
+    if (is !== was) {
+      const worst = Math.max(...perf.recent.map((r) => r[1]))
+      const ago = (now - input.at) / 1000
+      steps.unshift(
+        `${secs}s ${was} → ${is}${why.length ? ` (${why.join(', ')})` : ''}`,
+        `  gap ${perf.gap.toFixed(1)} pace ${perf.pace.toFixed(1)} worst ${worst.toFixed(0)} work ${perf.work.toFixed(1)}`,
+        `  ${ago < 60 ? `${input.type} ${ago.toFixed(1)}s before` : 'no scroll or touch'}`,
+      )
+    }
     if (now - hudShown < 250 && is === was) return
     hudShown = now
     const f = (v) => v.toFixed(1).padStart(5)
     hud.textContent = [
       `${is}   device ${devicePixelRatio}x   ${secs}s`,
       `work ${f(perf.work)} ms  (slow > 10, fast < 4)`,
-      `gap  ${f(perf.gap)} ms  (slow > ${(perf.pace * 1.5).toFixed(1)}, fast < ${(perf.pace * 1.15).toFixed(1)})`,
+      `gap  ${f(perf.gap)} ms  (slow > ${(perf.pace * 1.5).toFixed(1)}, fast < ${(perf.pace * 1.25).toFixed(1)})`,
       `pace ${f(perf.pace)} ms`,
       `slow ${f(perf.slow / 1000)} s  ${why.join(', ') || '-'}`,
       `fast ${f(perf.fast / 1000)} s`,
-      ...steps.slice(0, 6),
+      ...steps.slice(0, 9),
     ].join('\n')
   }
 
