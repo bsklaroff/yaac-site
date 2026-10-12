@@ -236,12 +236,7 @@
       background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 60%, var(--shell)) 100%);
       border: 1px solid var(--hairline); border-radius: 16px; padding: 1.9rem; display: flex; flex-direction: column;
     }
-    .ico {
-      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-      background: var(--bg); border: 1px solid var(--hairline); color: var(--accent); margin-bottom: 1.15rem;
-    }
-    .ico svg { width: 19px; height: 19px; }
-    .card h3 { font-size: 1.15rem; letter-spacing: -.015em; margin: 0 0 .9rem; }
+    .card h3 { font-size: 1.25rem; letter-spacing: -.015em; margin: 0 0 .9rem; }
     .ticks { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: .5rem; align-content: start; font-size: .94rem; color: var(--text-dim); }
     .ticks li { position: relative; padding-left: 1.5rem; }
     .ticks li::before {
@@ -252,10 +247,10 @@
     .visual { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
     .visual > :first-child { flex: 1; }
     @media (min-width: 1101px) {
-      /* Line up icon, title, text and panel across the three cards, and give
-         the panels one height. */
-      .bento { grid-template-rows: repeat(4, auto); row-gap: 0; }
-      .card { grid-row: span 4; display: grid; grid-template-rows: subgrid; }
+      /* Line up title, text and panel across the three cards, and give the
+         panels one height. */
+      .bento { grid-template-rows: repeat(3, auto); row-gap: 0; }
+      .card { grid-row: span 3; display: grid; grid-template-rows: subgrid; }
     }
     .config, .switcher, .snippet { border-radius: 12px; background: var(--bg); border: 1px solid var(--hairline); }
     .config { padding: .4rem .4rem .55rem; font-size: .8rem; }
@@ -430,10 +425,9 @@
     }
     @media (min-width: 641px) and (max-width: 1100px) {
       /* One card per row, bullets beside the panel. */
-      .card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); grid-template-rows: 1fr auto auto auto 1fr; column-gap: 2.25rem; }
-      .card > .ico { grid-column: 1; grid-row: 2; }
-      .card > h3 { grid-column: 1; grid-row: 3; }
-      .card > .ticks { grid-column: 1; grid-row: 4; margin-bottom: 0; }
+      .card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); grid-template-rows: 1fr auto auto 1fr; column-gap: 2.25rem; }
+      .card > h3 { grid-column: 1; grid-row: 2; }
+      .card > .ticks { grid-column: 1; grid-row: 3; margin-bottom: 0; }
       .card > .visual { grid-column: 2; grid-row: 1 / -1; }
     }
     @media (max-width: 520px) {
@@ -600,7 +594,6 @@
       </div>
       <div class="bento">
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div>
           <h3>Sandboxing</h3>
           <ul class="ticks">
             <li>Agents never see your secrets</li>
@@ -622,7 +615,6 @@
           </div>
         </div>
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></div>
           <h3>Orchestration</h3>
           <ul class="ticks">
             <li>Spawn and message sibling agents</li>
@@ -642,7 +634,6 @@
           </div>
         </div>
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
           <h3>Collaboration</h3>
           <ul class="ticks">
             <li>Automatic sign-in over Tailscale</li>
