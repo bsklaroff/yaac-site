@@ -1389,12 +1389,22 @@
     perf.since ||= now
     if (now - perf.since < 2000) return
     ms = Math.min(ms, 250)
-    // The display's pace: the shortest frame gap in the last 2.5 s. It
-    // follows the browser when it drops to 30 Hz (power saving, say) or comes
-    // back, and a short gap or two among slow frames keeps it honest.
+    // The display's pace: the quickest run of four frames in the last 2.5 s,
+    // averaged. It follows the browser when it drops to 30 Hz (power saving,
+    // say) or comes back, and a short run among slow frames keeps it honest.
+    // Frames arrive a few ms early or late (on iPhones especially), so a
+    // single gap after a late frame looks far quicker than the display; over
+    // four frames that mostly cancels out.
     perf.recent.push([now, ms])
     while (perf.recent[0][0] < now - 2500) perf.recent.shift()
-    perf.pace = Math.min(...perf.recent.map((r) => r[1]))
+    const run = Math.min(4, perf.recent.length)
+    let sum = 0
+    perf.pace = Infinity
+    perf.recent.forEach(([, gap], i) => {
+      sum += gap
+      if (i >= run) sum -= perf.recent[i - run][1]
+      if (i >= run - 1) perf.pace = Math.min(perf.pace, sum / run)
+    })
     perf.gap ||= ms
     perf.gap += (ms - perf.gap) * .05
     perf.work += (work - perf.work) * .05
