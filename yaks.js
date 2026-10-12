@@ -1400,12 +1400,14 @@
     perf.work += (work - perf.work) * .05
     // Slow: our own work is heavy, frames are dropping against that pace, or
     // the yaks are below 20 fps whatever the display.
-    const slow = perf.work > 10 || perf.gap > perf.pace * 1.5 || perf.gap > 50
+    const why = [perf.work > 10 && 'work', perf.gap > perf.pace * 1.5 && 'drops', perf.gap > 50 && 'under 20 fps'].filter(Boolean)
+    const slow = why.length > 0
     const fast = perf.work < 4 && perf.gap < perf.pace * 1.15 && perf.gap < 40
     // Act on how long it's been slow or fast, not on single frames. Slowness
     // must outlast the pace window, so a drop to 30 Hz is learned first.
     perf.slow = slow ? perf.slow + ms : 0
     perf.fast = fast ? perf.fast + ms : 0
+    const was = `${dpr}x, 1/${perf.every}`
     if (perf.slow > 3000) {
       perf.slow = 0
       if (dpr > 1) { perf.dprCap = Math.ceil(dpr) - 1; resize() }
@@ -1415,6 +1417,34 @@
       if (perf.every > 1) perf.every--
       else if (perf.dprCap < (devicePixelRatio || 1)) { perf.dprCap++; resize() }
     }
+    if (hud) showPerf(now, why, was)
+  }
+
+  // With ?perf in the address, show what the watcher sees and every step it
+  // takes, to tune it on a phone without a console.
+  const hud = new URLSearchParams(location.search).has('perf') && document.createElement('pre')
+  const steps = []
+  let hudShown = 0
+  if (hud) {
+    hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#fff;background:#000b;border-radius:6px;pointer-events:none;white-space:pre'
+    document.body.append(hud)
+  }
+  function showPerf(now, why, was) {
+    const is = `${dpr}x, 1/${perf.every}`
+    const secs = ((now - perf.since) / 1000 + 2).toFixed(1)
+    if (is !== was) steps.unshift(`${secs}s ${was} → ${is}${why.length ? ` (${why.join(', ')})` : ''}`)
+    if (now - hudShown < 250 && is === was) return
+    hudShown = now
+    const f = (v) => v.toFixed(1).padStart(5)
+    hud.textContent = [
+      `${is}   device ${devicePixelRatio}x   ${secs}s`,
+      `work ${f(perf.work)} ms  (slow > 10, fast < 4)`,
+      `gap  ${f(perf.gap)} ms  (slow > ${(perf.pace * 1.5).toFixed(1)}, fast < ${(perf.pace * 1.15).toFixed(1)})`,
+      `pace ${f(perf.pace)} ms`,
+      `slow ${f(perf.slow / 1000)} s  ${why.join(', ') || '-'}`,
+      `fast ${f(perf.fast / 1000)} s`,
+      ...steps.slice(0, 6),
+    ].join('\n')
   }
 
   // Re-map the page whenever its layout can change: resizes, fonts loading,
@@ -1527,6 +1557,9 @@
   let last = performance.now()
   let frameNo = 0
   function frame(now) {
+    // The frame's timestamp can be well before this callback runs; time our
+    // own work from here.
+    const start = performance.now()
     if (modalOpen()) {
       // Paused under the viewer: just the slow tick, nothing drawn. The pause
       // isn't a frame gap, and the next pointer move after it closes wakes it.
@@ -1550,7 +1583,7 @@
       for (const yak of yaks) update(yak, dt, t)
       updateEffects(dt)
       if (++frameNo % perf.every === 0) draw(t)
-      if (anyVisible) adapt(ms, performance.now() - now)
+      if (anyVisible) adapt(ms, performance.now() - start)
       busy = anyVisible || pointer.down
     } catch (err) {
       return shutDown(err)
