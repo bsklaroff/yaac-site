@@ -1,0 +1,7 @@
+allowBuilds:
+  esbuild: false
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Pinned to match bsklaroff/yaac, which adopted it early because 0.5.8
+  # leaks WASM stack on every query that raises a Postgres error.
+  - "@electric-sql/pglite@0.5.9"
