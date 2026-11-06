@@ -1,3 +1,5 @@
+import type { Context } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 /**
@@ -47,4 +49,15 @@ function defaultStatus(code: ErrorCode): ContentfulStatusCode {
     case 'RATE_LIMITED': return 429
     case 'INTERNAL': return 500
   }
+}
+
+/** The wire form of a thrown error. An unexpected one's message stays in
+ *  the log, not the response. */
+export function errorResponse(err: Error, c: Context): Response {
+  const reply = (status: ContentfulStatusCode, error: ServerErrorBody['error']) => c.json({ error }, status)
+  if (err instanceof ServerError) return reply(err.httpStatus, { code: err.code, message: err.message })
+  // Hono's own validator refusals: malformed JSON, a wrong Content-Type.
+  if (err instanceof HTTPException && err.status === 400) return reply(400, { code: 'VALIDATION', message: err.message })
+  console.error(`${c.req.method} ${c.req.path} failed:`, err)
+  return reply(500, { code: 'INTERNAL', message: 'internal error' })
 }

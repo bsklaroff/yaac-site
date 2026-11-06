@@ -1,0 +1,10 @@
+{
+  "install": { "run": "pnpm install --frozen-lockfile" },
+  "build": { "run": "pnpm build", "needs": ["install"] },
+  "web": {
+    "run": "DATA_DIR=${YAAC_VOLUME_DIR:?no volume mounted}/yaac-site pnpm start",
+    "service": true,
+    "needs": ["build", "volume"],
+    "ready": "curl -sf localhost:8000/api/health"
+  }
+}

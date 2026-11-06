@@ -1,10 +1,8 @@
-import { Hono, type Context } from 'hono'
-import { HTTPException } from 'hono/http-exception'
+import { Hono } from 'hono'
 import { logger } from 'hono/logger'
-import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { feedbackRoutes } from '#api/routes/feedback'
-import { ServerError, type ServerErrorBody } from '#errors'
+import { errorResponse } from '#errors'
 import { DEFAULT_LIMITS, type FeedbackLimits } from '#feedback/limits'
 import { PUBLIC_DIR } from '#paths'
 
@@ -36,17 +34,6 @@ export function buildApp(deps: AppDeps = {}) {
     onFound: (_path, c) => { c.header('Cache-Control', 'public, max-age=600') },
   }))
   return app
-}
-
-/** The wire form of a thrown error. An unexpected one's message stays in
- *  the log, not the response. */
-function errorResponse(err: Error, c: Context): Response {
-  const reply = (status: ContentfulStatusCode, error: ServerErrorBody['error']) => c.json({ error }, status)
-  if (err instanceof ServerError) return reply(err.httpStatus, { code: err.code, message: err.message })
-  // Hono's own validator refusals: malformed JSON, a wrong Content-Type.
-  if (err instanceof HTTPException && err.status === 400) return reply(400, { code: 'VALIDATION', message: err.message })
-  console.error(`${c.req.method} ${c.req.path} failed:`, err)
-  return reply(500, { code: 'INTERNAL', message: 'internal error' })
 }
 
 /**
