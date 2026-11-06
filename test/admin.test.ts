@@ -6,7 +6,7 @@ import { buildAdminApp } from '#admin/app'
 import { SCRIPT } from '#admin/views'
 import { buildApp } from '#app'
 import { createApiClient } from '#client'
-import { blockKey, closeDb, openDb } from '#db'
+import { blockKey, closeDb, getFeedback, openDb, setFeedbackArchived } from '#db'
 
 const PNG = Buffer.from('\x89PNG\r\n\x1a\nrest-of-image', 'latin1')
 
@@ -186,6 +186,10 @@ describe('the admin', () => {
     expect(await (await admin(`/feedback/${id}`)).text()).toContain('>Archive</button>')
     expect((await post(`/feedback/${crypto.randomUUID()}/archive`, [['archive', '1']])).status).toBe(404)
     expect((await post('/archive', [['id', 'not-a-uuid'], ['archive', '1']])).status).toBe(400)
+    // No page shows more than 50, and more than 65,535 would overflow the
+    // query's parameters.
+    const many = Array.from({ length: 51 }, (): [string, string] => ['id', crypto.randomUUID()])
+    expect((await post('/archive', [...many, ['archive', '1']])).status).toBe(400)
   })
 
   it('takes posts only from its own pages', async () => {
@@ -198,6 +202,23 @@ describe('the admin', () => {
     // A browser too old to send Sec-Fetch-Site still sends Origin.
     expect((await archive({ 'Origin': 'http://localhost:7777' })).status).toBe(303)
     expect(await (await admin('/')).text()).not.toContain(`/feedback/${id}`)
+  })
+
+  it('keeps when a report was first archived, until it is unarchived', async () => {
+    const { id: first } = await send('archived twice')
+    const { id: second } = await send('archived once')
+    const earlier = new Date('2026-11-06T17:09:32Z')
+    const later = new Date('2026-11-06T17:09:34Z')
+    expect(await setFeedbackArchived([first], true, earlier)).toEqual([first])
+    expect((await setFeedbackArchived([first, second], true, later)).sort()).toEqual([first, second].sort())
+    expect((await getFeedback(first))?.archivedAt).toEqual(earlier)
+    expect((await getFeedback(second))?.archivedAt).toEqual(later)
+    expect(await (await admin(`/feedback/${first}`)).text()).toContain('<th>archived</th><td>2026-11-06 17:09:32 UTC</td>')
+
+    await setFeedbackArchived([first, second], false)
+    expect((await getFeedback(first))?.archivedAt).toBeNull()
+    expect((await getFeedback(second))?.archivedAt).toBeNull()
+    expect(await (await admin(`/feedback/${first}`)).text()).toContain('<th>archived</th><td>—</td>')
   })
 
   it('is not served on the public port', async () => {

@@ -118,8 +118,9 @@ export function buildAdminApp(deps: AdminAppDeps = {}) {
     .post(
       '/archive',
       zv('form', listView.extend({
-        // A form sends one checked box as a string, several as an array.
-        id: z.union([z.uuid(), z.array(z.uuid())]).default([]).transform((ids) => [ids].flat()),
+        // A form sends one checked box as a string, several as an array,
+        // and never more than the page it came from shows.
+        id: z.union([z.uuid(), z.array(z.uuid()).max(PAGE_SIZE)]).default([]).transform((ids) => [ids].flat()),
         archive: z.stringbool(),
       })),
       async (c) => {
