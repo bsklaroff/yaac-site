@@ -1,9 +1,9 @@
 {
   "install": { "run": "pnpm install" },
   "web": {
-    "run": "PORT=8000 pnpm dev",
+    "run": "pnpm dev",
     "service": true,
     "needs": ["install"],
-    "ready": "curl -sf localhost:8000/api/health"
+    "ready": "curl -sf localhost:8000/api/health && curl -sf localhost:7777/ >/dev/null"
   }
 }

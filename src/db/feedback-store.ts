@@ -1,4 +1,4 @@
-import { and, count, eq, gt } from 'drizzle-orm'
+import { and, count, desc, eq, gt } from 'drizzle-orm'
 import { ServerError } from '#errors'
 import type { FeedbackLimits } from '#feedback/limits'
 import type { FeedbackReport } from '#feedback/report'
@@ -66,14 +66,53 @@ export async function recordFeedback(
   })
 }
 
-/** A report with its images, for tests and whatever reads them out. */
+/** A report with its images, and when its key was blocked if it was. */
 export async function getFeedback(id: string) {
   const db = await getDb()
   const [row] = await db.select().from(feedback).where(eq(feedback.id, id))
   if (!row) return undefined
+  const [install] = await db.select({ blockedAt: installKeys.blockedAt }).from(installKeys)
+    .where(eq(installKeys.key, row.key))
   const images = await db.select().from(feedbackImages)
     .where(eq(feedbackImages.feedbackId, id)).orderBy(feedbackImages.position)
-  return { ...row, images: images.map(({ mimeType, data }) => ({ mimeType, data })) }
+  return {
+    ...row,
+    blockedAt: install?.blockedAt ?? null,
+    images: images.map(({ mimeType, data }) => ({ mimeType, data })),
+  }
+}
+
+/**
+ * A page of reports, newest first, without their images' bytes: `limit`
+ * of them after skipping `offset`, and whether older ones remain.
+ */
+export async function listFeedback(page: { limit: number; offset: number }) {
+  const db = await getDb()
+  const rows = await db.select({
+    id: feedback.id,
+    key: feedback.key,
+    message: feedback.message,
+    receivedAt: feedback.receivedAt,
+    from: feedback.from,
+    blockedAt: installKeys.blockedAt,
+    images: count(feedbackImages.position),
+  }).from(feedback)
+    .innerJoin(installKeys, eq(installKeys.key, feedback.key))
+    .leftJoin(feedbackImages, eq(feedbackImages.feedbackId, feedback.id))
+    .groupBy(feedback.id, installKeys.key)
+    .orderBy(desc(feedback.receivedAt), desc(feedback.id))
+    .limit(page.limit + 1)
+    .offset(page.offset)
+  return { reports: rows.slice(0, page.limit), more: rows.length > page.limit }
+}
+
+/** One of a report's images, by its position in the report. */
+export async function getFeedbackImage(id: string, position: number) {
+  const db = await getDb()
+  const [image] = await db.select({ mimeType: feedbackImages.mimeType, data: feedbackImages.data })
+    .from(feedbackImages)
+    .where(and(eq(feedbackImages.feedbackId, id), eq(feedbackImages.position, position)))
+  return image
 }
 
 /** Refuse a key's reports from now on, recording it if it is new. */
