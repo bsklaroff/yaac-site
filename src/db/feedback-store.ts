@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt } from 'drizzle-orm'
+import { and, count, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { ServerError } from '#errors'
 import type { FeedbackLimits } from '#feedback/limits'
 import type { FeedbackReport } from '#feedback/report'
@@ -84,26 +84,43 @@ export async function getFeedback(id: string) {
 
 /**
  * A page of reports, newest first, without their images' bytes: `limit`
- * of them after skipping `offset`, and whether older ones remain.
+ * of them after skipping `offset`, and whether older ones remain. Archived
+ * ones are left out unless `archived` is set.
  */
-export async function listFeedback(page: { limit: number; offset: number }) {
+export async function listFeedback(page: { limit: number; offset: number; archived?: boolean }) {
   const db = await getDb()
   const rows = await db.select({
     id: feedback.id,
     key: feedback.key,
     message: feedback.message,
     receivedAt: feedback.receivedAt,
+    archivedAt: feedback.archivedAt,
     from: feedback.from,
     blockedAt: installKeys.blockedAt,
     images: count(feedbackImages.position),
   }).from(feedback)
     .innerJoin(installKeys, eq(installKeys.key, feedback.key))
     .leftJoin(feedbackImages, eq(feedbackImages.feedbackId, feedback.id))
+    .where(page.archived ? undefined : isNull(feedback.archivedAt))
     .groupBy(feedback.id, installKeys.key)
     .orderBy(desc(feedback.receivedAt), desc(feedback.id))
     .limit(page.limit + 1)
     .offset(page.offset)
   return { reports: rows.slice(0, page.limit), more: rows.length > page.limit }
+}
+
+/**
+ * Archive the reports `ids` names, or unarchive them. A report already
+ * archived keeps when it first was. Returns the ids that exist.
+ */
+export async function setFeedbackArchived(ids: readonly string[], archived: boolean, now: Date = new Date()) {
+  if (ids.length === 0) return []
+  const db = await getDb()
+  const rows = await db.update(feedback)
+    .set({ archivedAt: archived ? sql`coalesce(${feedback.archivedAt}, ${now})` : null })
+    .where(inArray(feedback.id, [...ids]))
+    .returning({ id: feedback.id })
+  return rows.map((row) => row.id)
 }
 
 /** One of a report's images, by its position in the report. */

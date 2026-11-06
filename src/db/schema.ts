@@ -42,6 +42,8 @@ export const feedback = snakeCase.table('feedback', {
   from: jsonb().$type<FeedbackFrom>(),
   server: jsonb().$type<FeedbackServer>().notNull(),
   client: jsonb().$type<FeedbackClient>(),
+  /** Set from the admin to hide the report from its list by default. */
+  archivedAt: timestamp({ withTimezone: true }),
 }, (t) => [index().on(t.key, t.receivedAt)])
 
 /**
