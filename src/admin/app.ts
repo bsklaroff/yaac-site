@@ -1,16 +1,18 @@
+import crypto from 'node:crypto'
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { z } from 'zod'
 import { zv } from '#api/validator'
-import { getFeedback, getFeedbackImage, listFeedback } from '#db'
+import { getFeedback, getFeedbackImage, listFeedback, setFeedbackArchived } from '#db'
 import { errorResponse, ServerError } from '#errors'
-import { feedbackDetailPage, feedbackListPage } from './views'
+import { feedbackDetailPage, feedbackListPage, listUrl, SCRIPT } from './views'
 
 const PAGE_SIZE = 50
 
-/** The pages' own CSP: no script at all, images only from here. */
-const PAGE_CSP = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+/** The pages' own CSP: no script but the list's select-all box, images
+ *  and forms only from here. */
+const PAGE_CSP = `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'sha256-${crypto.createHash('sha256').update(SCRIPT).digest('base64')}'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`
 
 /** A report's images only had their magic bytes checked, so one may be a
  *  polyglot: fixed type, no sniffing, downloaded rather than opened, and
@@ -44,6 +46,25 @@ const loopbackOnly = createMiddleware(async (c, next) => {
   await next()
 })
 
+/**
+ * The Host check lets through a form another site's page makes the browser
+ * post here (CSRF), so a POST must come from one of these pages: by
+ * `Sec-Fetch-Site`, or by `Origin` from a browser too old to send it.
+ */
+const sameOriginPosts = createMiddleware(async (c, next) => {
+  if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+    // eslint-disable-next-line no-restricted-syntax -- who sent it, not input
+    const site = c.req.header('sec-fetch-site')
+    // eslint-disable-next-line no-restricted-syntax -- who sent it, not input
+    const origin = c.req.header('origin')
+    if (site ? site !== 'same-origin' : origin !== new URL(c.req.url).origin) {
+      console.warn(`admin: refused ${c.req.method} ${c.req.path} from ${origin ?? 'no origin'} (${site ?? 'no Sec-Fetch-Site'})`)
+      throw new ServerError('FORBIDDEN', 'the admin takes posts only from its own pages')
+    }
+  }
+  await next()
+})
+
 const noStore = createMiddleware(async (c, next) => {
   await next()
   c.header('Cache-Control', 'no-store')
@@ -53,6 +74,12 @@ const noStore = createMiddleware(async (c, next) => {
 })
 
 const reportId = z.object({ id: z.uuid() })
+
+/** Which of the list's pages: `archived` shows the archived reports too. */
+const listView = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  archived: z.stringbool().default(false),
+})
 
 function notFound(): never {
   throw new ServerError('NOT_FOUND', 'no such report')
@@ -74,17 +101,43 @@ export function buildAdminApp(deps: AdminAppDeps = {}) {
   if (deps.logRequests) app.use('*', logger())
 
   app.onError(errorResponse)
-  app.use('*', loopbackOnly, noStore)
+  app.use('*', loopbackOnly, sameOriginPosts, noStore)
 
   return app
-    .get('/', zv('query', z.object({ page: z.coerce.number().int().min(1).default(1) })), async (c) => {
-      const { page } = c.req.valid('query')
-      const { reports, more } = await listFeedback({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
-      return c.html(feedbackListPage(reports, { page, more }))
+    .get('/', zv('query', listView), async (c) => {
+      const view = c.req.valid('query')
+      const { reports, more } = await listFeedback({
+        limit: PAGE_SIZE,
+        offset: (view.page - 1) * PAGE_SIZE,
+        archived: view.archived,
+      })
+      return c.html(feedbackListPage(reports, { ...view, more }))
     })
+    // The list's checked reports, archived or unarchived by the button
+    // pressed, then back to the page they were on.
+    .post(
+      '/archive',
+      zv('form', listView.extend({
+        // A form sends one checked box as a string, several as an array,
+        // and never more than the page it came from shows.
+        id: z.union([z.uuid(), z.array(z.uuid()).max(PAGE_SIZE)]).default([]).transform((ids) => [ids].flat()),
+        archive: z.stringbool(),
+      })),
+      async (c) => {
+        const { id, archive, ...view } = c.req.valid('form')
+        await setFeedbackArchived(id, archive)
+        return c.redirect(listUrl(view), 303)
+      },
+    )
     .get('/feedback/:id', zv('param', reportId), async (c) => {
       const report = await getFeedback(c.req.valid('param').id) ?? notFound()
       return c.html(feedbackDetailPage(report))
+    })
+    .post('/feedback/:id/archive', zv('param', reportId), zv('form', z.object({ archive: z.stringbool() })), async (c) => {
+      const { id } = c.req.valid('param')
+      const [found] = await setFeedbackArchived([id], c.req.valid('form').archive)
+      if (!found) notFound()
+      return c.redirect(`/feedback/${id}`, 303)
     })
     .get(
       '/feedback/:id/images/:position',
