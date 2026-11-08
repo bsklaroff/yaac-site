@@ -4,9 +4,11 @@ import type { getFeedback, listFeedback } from '#db'
 /*
  * The admin pages, as `hono/html` templates, which escape every
  * interpolated string: the reports are whatever an install chose to send.
- * No script, and the styles inline, so the pages' CSP can refuse both.
- * `STYLE` is a constant, so it alone goes in raw: `<style>` doesn't decode
- * entities, so escaping it would break its quotes.
+ * The styles are inline, and the one script is the constant `SCRIPT`,
+ * which the pages' CSP allows by its hash and no other. `STYLE` and
+ * `SCRIPT` are constants, so they alone go in raw: `<style>` and
+ * `<script>` don't decode entities, so escaping them would break their
+ * quotes.
  */
 
 type Html = ReturnType<typeof html>
@@ -29,10 +31,41 @@ const STYLE = `
   .dim { color: var(--text-dim); }
   .nowrap { white-space: nowrap; }
   .blocked { color: #f85149; font-weight: 600; }
+  .archived { color: var(--text-dim); }
+  tr.archived td { opacity: 0.6; }
+  .tag { border: 1px solid var(--border); border-radius: 4px; padding: 0 0.3rem; font-size: 12px; }
+  button, .button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer; text-decoration: none; display: inline-block; }
+  button:hover, .button:hover { border-color: var(--accent); }
+  .toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+  .toolbar .spacer { flex: 1; }
+  input[type=checkbox] { margin: 0.2rem 0 0; }
   .message { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface);
     border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
   .images img { max-width: 100%; max-height: 40rem; border: 1px solid var(--border); margin-bottom: 1rem; }
   nav { margin-top: 1rem; display: flex; gap: 1rem; }
+`
+
+/** The list's select-all box: hidden until this shows it, it checks or
+ *  unchecks every report's box, and shows whether some or all are. */
+export const SCRIPT = `
+  const all = document.getElementById('select-all')
+  const boxes = [...document.querySelectorAll('input[name="id"]')]
+  if (all) {
+    const sync = () => {
+      const checked = boxes.filter((box) => box.checked).length
+      all.checked = checked === boxes.length
+      all.indeterminate = checked > 0 && checked < boxes.length
+    }
+    all.addEventListener('change', () => {
+      for (const box of boxes) box.checked = all.checked
+      sync()
+    })
+    for (const box of boxes) box.addEventListener('change', sync)
+    // Back and forward restore the boxes' state after this first runs.
+    addEventListener('pageshow', sync)
+    all.hidden = false
+  }
 `
 
 function page(title: string, body: Html): Html {
@@ -68,26 +101,61 @@ function keyCell(key: string, blockedAt: Date | null): Html {
   return html`<span class="mono" title="${key}">${key.slice(0, 12)}…</span>${blockedAt ? html` <span class="blocked">blocked</span>` : ''}`
 }
 
-/** The list of reports, newest first, a page at a time. */
-export function feedbackListPage(reports: Summary[], at: { page: number; more: boolean }): Html {
-  const rows = reports.map((r) => html`<tr>
-  <td class="nowrap"><a href="/feedback/${r.id}">${when(r.receivedAt)}</a></td>
+/** Which page of the list, and whether it shows the archived reports. */
+export interface ListView {
+  page: number
+  archived: boolean
+}
+
+/** The list's own URL for `view`, leaving out what is the default. */
+export function listUrl(view: ListView): string {
+  const query = new URLSearchParams()
+  if (view.archived) query.set('archived', '1')
+  if (view.page > 1) query.set('page', view.page.toString())
+  return query.size > 0 ? `/?${query.toString()}` : '/'
+}
+
+function archivedTag(archivedAt: Date | null): Html | string {
+  return archivedAt ? html` <span class="tag archived" title="archived ${when(archivedAt)}">archived</span>` : ''
+}
+
+/**
+ * The list of reports, newest first, a page at a time, without the
+ * archived ones unless `at.archived`. Each has a box to check, and the
+ * checked ones are archived (or unarchived) together.
+ */
+export function feedbackListPage(reports: Summary[], at: ListView & { more: boolean }): Html {
+  const rows = reports.map((r) => html`<tr${r.archivedAt ? html` class="archived"` : ''}>
+  <td><input type="checkbox" name="id" value="${r.id}" form="archive" aria-label="Select"></td>
+  <td class="nowrap"><a href="/feedback/${r.id}">${when(r.receivedAt)}</a>${archivedTag(r.archivedAt)}</td>
   <td>${sender(r.from)}</td>
   <td>${excerpt(r.message)}</td>
   <td>${r.images || ''}</td>
   <td class="nowrap">${keyCell(r.key, r.blockedAt)}</td>
 </tr>`)
+  const empty = at.page > 1 ? 'No reports on this page.' : at.archived ? 'No reports yet.' : 'No unarchived reports.'
   return page('Feedback', html`<h1>Feedback</h1>
+<form id="archive" method="post" action="/archive" class="toolbar">
+<input type="hidden" name="page" value="${at.page}">
+${at.archived ? html`<input type="hidden" name="archived" value="1">` : ''}
+${reports.length > 0 ? html`<button name="archive" value="1">Archive selected</button>` : ''}
+${reports.length > 0 && at.archived ? html`<button name="archive" value="0">Unarchive selected</button>` : ''}
+<span class="spacer"></span>
+${at.archived
+    ? html`<a class="button" href="${listUrl({ page: 1, archived: false })}">Hide archived</a>`
+    : html`<a class="button" href="${listUrl({ page: 1, archived: true })}">Show archived</a>`}
+</form>
 ${reports.length === 0
-    ? html`<p class="dim">${at.page === 1 ? 'No reports yet.' : 'No reports on this page.'}</p>`
+    ? html`<p class="dim">${empty}</p>`
     : html`<table>
-<thead><tr><th>Received</th><th>From</th><th>Message</th><th>Images</th><th>Key</th></tr></thead>
+<thead><tr><th><input type="checkbox" id="select-all" aria-label="Select all" hidden></th><th>Received</th><th>From</th><th>Message</th><th>Images</th><th>Key</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>`}
 <nav>
-${at.page > 1 ? html`<a href="/?page=${at.page - 1}">← Newer</a>` : ''}
-${at.more ? html`<a href="/?page=${at.page + 1}">Older →</a>` : ''}
-</nav>`)
+${at.page > 1 ? html`<a href="${listUrl({ ...at, page: at.page - 1 })}">← Newer</a>` : ''}
+${at.more ? html`<a href="${listUrl({ ...at, page: at.page + 1 })}">Older →</a>` : ''}
+</nav>
+<script>${raw(SCRIPT)}</script>`)
 }
 
 /** `{ app: { kind: 'desktop' } }` → `[['app.kind', 'desktop']]`. */
@@ -110,13 +178,19 @@ export function feedbackDetailPage(r: Report): Html {
     return html`<div><a href="${src}"><img src="${src}" alt="Screenshot ${position + 1}"></a></div>`
   })
   return page(excerpt(r.message, 60), html`<p><a href="/">← All feedback</a></p>
-<h1>Feedback from ${sender(r.from)}</h1>
+<h1>Feedback from ${sender(r.from)}${archivedTag(r.archivedAt)}</h1>
+<form method="post" action="/feedback/${r.id}/archive" class="toolbar">
+${r.archivedAt
+    ? html`<button name="archive" value="0">Unarchive</button>`
+    : html`<button name="archive" value="1">Archive</button>`}
+</form>
 <div class="message">${r.message}</div>
 <h2>Report</h2>
 ${fieldTable([
     ['id', html`<span class="mono">${r.id}</span>`],
     ['received', when(r.receivedAt)],
     ['sent', when(r.sentAt)],
+    ['archived', when(r.archivedAt)],
     ['from', sender(r.from)],
     ['key', html`<span class="mono">${r.key}</span>${r.blockedAt ? html` <span class="blocked">blocked ${when(r.blockedAt)}</span>` : ''}`],
   ])}
