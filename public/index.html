@@ -34,11 +34,15 @@
   <style>
     /*
      * Design tokens, after the website board of the yaac design canvas
-     * (yaac.dev v5). Dark is the board's palette on yaac's own #18181B page
-     * (the board's is black): cards cut by one 1px ring, pill controls,
-     * EB Garamond headlines over Geist. Light mirrors it. Colour is for state (green ok, red blocked) and the logo's
-     * four strokes, which mark the section labels and each headline's italic
-     * half. The accent marks focus only.
+     * (yaac.dev v5) and yaac's own foundation (packages/frontend/src/styles/
+     * tokens.css). Dark is the board's palette on yaac's own #18181B page
+     * (the board's is black), and light mirrors it. Shapes are yaac's: boxes
+     * are square tiles that sit edge to edge, cut by 1px lines, and only
+     * controls get a 4px corner. A segmented control's chosen option is
+     * raised like a pressed key. EB Garamond headlines over Geist. Colour is
+     * for state (green ok, red blocked) and the logo's four strokes, which
+     * mark the section labels and each headline's italic half. The accent
+     * marks focus only.
      *
      * Every colour is written once as light-dark(light, dark), so a theme is
      * only a color-scheme: data-theme on <html> picks light, dark, or the
@@ -107,6 +111,20 @@
         0 0 0 1px light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.10)),
         0 30px 80px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.80));
       --shadow-float: 0 8px 24px light-dark(rgb(0 0 0 / 0.10), rgb(0 0 0 / 0.60));
+      /* A segmented control's chosen option, lit from above like yaac's
+         --edge-control, on a track a step below the page. */
+      --fill-key: light-dark(#FFFFFF, #303034);
+      --edge-key:
+        inset 0 1px 0 light-dark(transparent, rgb(255 255 255 / 0.10)),
+        0 0 0 1px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.60)),
+        0 2px 4px -1px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.30));
+      --bg-track: light-dark(#F0F0EF, #111113);
+
+      /* Corners: 4px on controls (buttons, tabs, chips, code), square
+         everywhere else. A segmented control's keys sit 1px tighter inside
+         their track. */
+      --radius: 4px;
+      --radius-key: calc(var(--radius) - 1px);
 
       /* The site's own: the architecture diagram's grid, fainter than a line. */
       --grid: light-dark(rgb(0 0 0 / 0.04), rgb(255 255 255 / 0.035));
@@ -157,10 +175,10 @@
     }
 
     /* ---------- buttons ---------- */
-    /* Pills: primary is solid, secondary a 1px ring. */
+    /* Primary is solid, secondary a 1px ring. */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-      height: 48px; padding: 0 1.5rem; border: 0; border-radius: 999px; cursor: pointer;
+      height: 46px; padding: 0 1.4rem; border: 0; border-radius: var(--radius); cursor: pointer;
       font: 500 15px/1 var(--sans); text-decoration: none; white-space: nowrap;
       background: transparent; box-shadow: inset 0 0 0 1px var(--ring); color: var(--text);
       transition: background .15s ease, transform .1s ease;
@@ -170,22 +188,22 @@
     .btn svg { width: 16px; height: 16px; flex: none; }
     .btn.primary { background: var(--fill-primary); box-shadow: none; color: var(--text-on-primary); }
     .btn.primary:hover { background: var(--fill-primary-hover); }
-    .btn.sm { height: 34px; padding: 0 1rem; font-size: 13.5px; gap: .375rem; }
+    .btn.sm { height: 32px; padding: 0 1rem; font-size: 13.5px; gap: .375rem; }
 
     /* ---------- theme switch ---------- */
-    /* A pill track; the chosen option is a solid pill. */
-    .theme {
-      display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;
-      box-shadow: inset 0 0 0 1px var(--track);
+    /* A segmented control: the chosen option is a raised key on the track. */
+    .theme, .tabs, .servers {
+      display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius);
+      background: var(--bg-track); box-shadow: inset 0 0 0 1px var(--track);
     }
     .theme button {
       display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
-      height: 24px; padding: 0 .6rem; border: 0; border-radius: 999px; cursor: pointer;
+      height: 24px; padding: 0 .6rem; border: 0; border-radius: var(--radius-key); cursor: pointer;
       font: 400 12px/1 var(--sans); color: var(--text-soft); background: none;
       transition: background .15s ease, color .15s ease;
     }
     .theme button:hover { color: var(--text); }
-    .theme button[aria-checked="true"] { background: var(--fill-primary); color: var(--text-on-primary); }
+    .theme button[aria-checked="true"], .tabs button[aria-selected="true"], .servers .on { background: var(--fill-key); box-shadow: var(--edge-key); color: var(--text); }
     .theme svg { width: 14px; height: 14px; flex: none; }
     .theme.icons button { width: 24px; padding: 0; }
 
@@ -221,46 +239,49 @@
     .platform a { color: var(--text-muted); text-decoration-color: var(--ring); text-underline-offset: 3px; }
     .platform a:hover { color: var(--text); text-decoration-color: var(--text-subtle); }
 
-    /* The install command: a code pill. */
+    /* The install command. */
     .brew { max-width: 540px; margin: 2.5rem auto 0; text-align: left; }
-    .term { position: relative; border-radius: 999px; background: var(--bg-code); box-shadow: var(--edge); }
+    .term { position: relative; border-radius: var(--radius); background: var(--bg-code); box-shadow: var(--edge); }
     .term pre { margin: 0; padding: .7rem 4.75rem .7rem 1.25rem; overflow-x: auto; font: .9rem/1.85 var(--mono); color: var(--text); }
     .term .p { color: var(--text-subtle); user-select: none; }
     .term .nb { display: none; }
     .copy {
       position: absolute; top: 50%; right: .55rem; transform: translateY(-50%);
-      height: 30px; padding: 0 .8rem; border: 0; border-radius: 999px; cursor: pointer;
+      height: 28px; padding: 0 .75rem; border: 0; border-radius: var(--radius); cursor: pointer;
       font: 500 12.5px/1 var(--sans); color: var(--text);
       background: transparent; box-shadow: inset 0 0 0 1px var(--ring);
       transition: background .15s ease;
     }
     .copy:hover { background: var(--bg-hover); }
 
-    .agents { margin: 3rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .75rem 2rem; color: var(--text-subtle); font-size: 15px; }
-    .agents ul { display: contents; list-style: none; }
-    .agents li { display: inline-flex; align-items: center; gap: .5rem; color: var(--text-muted); font-size: 15px; }
+    /* The agents sit on a strip of tiles cut by 1px lines. Each tile draws
+       its own ring and overlaps its neighbours' by 1px, so the lines stay
+       1px wherever the strip wraps. */
+    .agents { margin: 3rem 0 0; display: flex; flex-direction: column; align-items: center; gap: .9rem; color: var(--text-subtle); font-size: 14px; }
+    .agents ul { display: flex; flex-wrap: wrap; justify-content: center; list-style: none; margin: 0; padding: 1px 0 0 1px; }
+    .agents li {
+      display: inline-flex; align-items: center; gap: .55rem; height: 52px; padding: 0 1.3rem; margin: -1px 0 0 -1px;
+      color: var(--text-muted); font-size: 15px; background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--line);
+    }
     .agents svg { width: 18px; height: 18px; }
 
     /* ---------- showcase ---------- */
     .showcase { margin-top: 4.5rem; }
-    .tabs {
-      display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px;
-      box-shadow: inset 0 0 0 1px var(--track);
-      max-width: 100%; overflow-x: auto; scrollbar-width: none;
-    }
+    /* The 4px padding leaves room for the focus ring (2px at a 2px offset),
+       which overflow-x would otherwise clip. */
+    .tabs { padding: 4px; gap: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
     .tabs button {
       font: 400 15px var(--sans); color: var(--text-soft); background: none; border: 0; cursor: pointer;
-      height: 34px; padding: 0 1.1rem; border-radius: 999px; white-space: nowrap;
+      height: 34px; padding: 0 1.1rem; border-radius: var(--radius-key); white-space: nowrap;
       display: inline-flex; align-items: center; gap: .45rem;
       transition: background .15s ease, color .15s ease;
     }
     .tabs button svg { width: 15px; height: 15px; }
     .tabs button:hover { color: var(--text); }
-    .tabs button[aria-selected="true"] { background: var(--fill-primary); color: var(--text-on-primary); }
     .caption { min-height: 1.6em; margin: 1.25rem auto 2rem; color: var(--text-muted); font-size: 1.05rem; max-width: 40rem; }
     .stage { position: relative; }
     .frame {
-      position: relative; border-radius: 10px; overflow: hidden; background: var(--bg-card);
+      position: relative; overflow: hidden; background: var(--bg-card);
       box-shadow: var(--shadow-frame);
       /* The panels share one grid cell, so the screenshots size the frame. */
       display: grid; cursor: zoom-in;
@@ -271,7 +292,7 @@
     .zoom {
       position: absolute; top: .75rem; right: .75rem; z-index: 2;
       width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
-      border: 0; border-radius: 50%; color: var(--text);
+      border: 0; border-radius: var(--radius); color: var(--text);
       background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--ring), var(--shadow-float);
       opacity: 0; transition: opacity .2s ease, background .15s ease;
     }
@@ -311,12 +332,12 @@
       display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem;
     }
     .lb-bar > * { pointer-events: auto; }
-    .lb-title, .lb-caption > span { background: var(--bg-raised); border-radius: 12px; box-shadow: var(--edge), var(--shadow-float); }
+    .lb-title, .lb-caption > span { background: var(--bg-raised); border-radius: var(--radius); box-shadow: var(--edge), var(--shadow-float); }
     .lb-title { font-weight: 500; font-size: 14px; padding: .45rem .85rem; }
     .lb-actions { display: flex; gap: .4rem; }
     .lb-btn {
       width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; color: var(--text);
-      border: 0; border-radius: 50%; background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--ring), var(--shadow-float);
+      border: 0; border-radius: var(--radius); background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--ring), var(--shadow-float);
       transition: background .15s ease;
     }
     .lb-btn[hidden] { display: none; }
@@ -333,7 +354,7 @@
     .lb-hint .touch { display: none; }
     @media (hover: none) { .lb-hint .touch { display: inline; } .lb-hint .mouse { display: none; } }
     kbd {
-      display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 6px;
+      display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: var(--radius);
       font: 400 11px/1 var(--sans); color: var(--text-subtle); box-shadow: inset 0 0 0 1px var(--ring);
     }
     kbd svg { width: 11px; height: 11px; }
@@ -360,10 +381,15 @@
     .head p { color: var(--text-muted); margin: 0; font-size: clamp(1.1rem, 1.8vw, 1.25rem); line-height: 1.45; text-wrap: pretty; }
 
     /* ---------- feature cards ---------- */
-    .bento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+    /* The cards are tiles sitting edge to edge: the grid's background shows
+       through its 1px gaps and border as the lines between them. */
+    .bento {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+      padding: 1px; background: var(--line);
+    }
     .card {
-      min-width: 0; background: var(--bg-card); box-shadow: var(--edge);
-      border-radius: 20px; padding: 1.75rem; display: flex; flex-direction: column;
+      min-width: 0; background: var(--bg-card);
+      padding: 1.75rem; display: flex; flex-direction: column;
     }
     .card h3 { font-size: clamp(1.65rem, 2.4vw, 2rem); line-height: 1; margin: 0 0 1.1rem; }
     .ticks { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: .55rem; align-content: start; font-size: 1.0625rem; line-height: 1.5; color: var(--text-soft); }
@@ -382,12 +408,12 @@
       .card { grid-row: span 3; display: grid; grid-template-rows: subgrid; }
     }
     /* The panels inside a card sit in wells, a step off the card toward the page. */
-    .config, .switcher, .snippet { border-radius: 12px; background: var(--bg-well); box-shadow: var(--edge); }
+    .config, .switcher, .snippet { background: var(--bg-well); box-shadow: var(--edge); }
     .config { padding: .45rem .45rem .6rem; font-size: .8rem; }
     .config-head { padding: .45rem .55rem .2rem; color: var(--text-subtle); font-size: 12px; }
     .config-label { padding: .6rem .55rem .3rem; font: 400 12px var(--sans); color: var(--text-subtle); }
     .config code { font: .72rem var(--mono); color: var(--text); }
-    .secret, .host { display: grid; align-items: center; gap: .6rem; padding: .32rem .55rem; border-radius: 8px; }
+    .secret, .host { display: grid; align-items: center; gap: .6rem; padding: .32rem .55rem; border-radius: var(--radius); }
     .secret { grid-template-columns: auto 1fr auto; background: var(--bg-card); box-shadow: var(--edge); margin: 0 .15rem .3rem; min-width: 0; }
     .secret .dots { overflow: hidden; white-space: nowrap; min-width: 0; }
     .secret .dots { color: var(--text-subtle); letter-spacing: .05em; font-size: .7rem; }
@@ -402,11 +428,12 @@
     .switcher { padding: .45rem; font-size: .84rem; display: flex; flex-direction: column; }
     .switcher-head { display: flex; align-items: center; gap: .5rem; padding: .45rem .55rem .55rem; color: var(--text-subtle); font-size: 12px; }
     .switcher-head svg { width: 14px; height: 14px; }
-    .who { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .45rem .55rem; border-radius: 8px; }
+    .who { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .45rem .55rem; border-radius: var(--radius); }
     .who.selected { background: var(--bg-selected); }
-    /* YAvatar: a project colour's fill, the initial on it. */
+    /* A square tile like yaac's YProjectTile: a colour family's fill, the
+       initial on it. */
     .avatar {
-      width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+      width: 28px; height: 28px; display: grid; place-items: center;
       font-size: 12px; font-weight: 600; line-height: 1; color: var(--proj-on); background: var(--fill);
     }
     .who .id { display: flex; flex-direction: column; line-height: 1.25; color: var(--text); min-width: 0; }
@@ -425,33 +452,34 @@
     /* ---------- architecture ---------- */
     .arch {
       display: grid; grid-template-columns: 1fr auto 1.15fr auto 1.6fr; align-items: center;
-      padding: 2.5rem; border-radius: 22px; box-shadow: var(--edge);
+      padding: 2.5rem; box-shadow: var(--edge);
       background:
         linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
         linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
         var(--bg-card);
     }
-    .node { border-radius: 14px; background: var(--bg-well); box-shadow: var(--edge); padding: 1.15rem 1.2rem; }
+    .node { background: var(--bg-well); box-shadow: var(--edge); padding: 1.15rem 1.2rem; }
     .node h4 { margin: 0 0 .8rem; font-size: 1rem; font-weight: 500; letter-spacing: -.01em; display: flex; align-items: center; gap: .5rem; }
     .node h4 img { width: 20px; height: 20px; }
     .node .sub { font: 400 12.5px var(--sans); color: var(--text-subtle); margin-bottom: .65rem; }
     .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .servers { display: flex; gap: 2px; padding: 3px; margin: 0 0 .9rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--track); }
-    .servers span { flex: 1; text-align: center; font: 400 12.5px/1 var(--sans); color: var(--text-soft); padding: .45rem 0; border-radius: 999px; }
-    .servers .on { background: var(--fill-primary); color: var(--text-on-primary); }
-    .chip { display: inline-flex; align-items: center; height: 24px; font-size: 12.5px; padding: 0 .65rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); color: var(--text-muted); white-space: nowrap; }
-    .clients { display: grid; gap: .6rem; }
-    .client { display: flex; align-items: center; gap: .65rem; padding: .75rem .95rem; border-radius: 12px; background: var(--bg-well); box-shadow: var(--edge); font-size: 15px; }
+    .servers { display: flex; margin: 0 0 .9rem; }
+    .servers span { flex: 1; text-align: center; font: 400 12.5px/1 var(--sans); color: var(--text-soft); padding: .45rem 0; border-radius: var(--radius-key); }
+    .chip { display: inline-flex; align-items: center; height: 24px; font-size: 12.5px; padding: 0 .55rem; border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--ring); color: var(--text-muted); white-space: nowrap; }
+    /* The clients stack as flush tiles, like the feature cards. */
+    .clients { display: grid; gap: 1px; padding: 1px; background: var(--line); }
+    .client { display: flex; align-items: center; gap: .65rem; padding: .75rem .95rem; background: var(--bg-well); font-size: 15px; }
     .client svg { width: 16px; height: 16px; color: var(--text-muted); }
     .link { position: relative; width: 74px; height: 2px; margin: 0 .25rem; }
     .link::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--text-subtle) 0 6px, transparent 6px 11px); opacity: .6; }
     .link span { position: absolute; left: 50%; bottom: 9px; transform: translateX(-50%); font: 400 12.5px var(--sans); color: var(--text-subtle); white-space: nowrap; }
     .server { box-shadow: inset 0 0 0 1px var(--ring); }
     .pods { display: grid; gap: .55rem; }
-    .pod { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .6rem .8rem; border-radius: 10px; background: var(--bg-card); border: 1px dashed var(--ring); font-size: 13px; line-height: 1.35; }
-    .pod svg { width: 16px; height: 16px; }
+    .pod { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .55rem .8rem .55rem .55rem; background: var(--bg-card); border: 1px dashed var(--ring); font-size: 13px; line-height: 1.35; }
+    /* Each workspace's agent mark sits on a square tile. */
+    .pod > svg { box-sizing: content-box; width: 16px; height: 16px; padding: 8px; background: var(--bg-band); box-shadow: inset 0 0 0 1px var(--line); }
     .pod .meta { font-size: 12px; color: var(--text-subtle); }
-    .pod .tag { font: 400 11px var(--sans); color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--ring); padding: .15rem .5rem; border-radius: 999px; }
+    .pod .tag { font: 400 11px var(--sans); color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--ring); padding: .15rem .45rem; border-radius: var(--radius); }
     .mama { margin-top: .75rem; font-size: 12px; color: var(--text-subtle); display: flex; align-items: center; gap: .5rem; }
     .mama code { color: var(--text-muted); }
     .mama svg { width: 13px; height: 13px; flex: none; }
@@ -465,7 +493,7 @@
     th, td { text-align: left; padding: 1.1rem 1.4rem; border-top: 1px solid var(--line); vertical-align: top; }
     tbody th { padding-left: 0; }
     thead th { border-top: 0; padding-top: 1.1rem; padding-bottom: 1rem; font: 400 1.0625rem var(--sans); color: var(--text-soft); }
-    thead th:nth-child(2) { color: var(--text); font-size: 1.25rem; border-radius: 16px 16px 0 0; }
+    thead th:nth-child(2) { color: var(--text); font-size: 1.25rem; }
     thead th:nth-child(2), tbody td:nth-of-type(1) { background: var(--bg-band); }
     tbody th { font-weight: 400; color: var(--text); width: 22%; }
     td { color: var(--text-muted); width: 39%; }
@@ -474,11 +502,17 @@
     td a:hover { text-decoration-color: var(--text); }
 
     /* ---------- values ---------- */
-    .values { border-top: 1px solid var(--line); }
-    .value {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 2.5rem; align-items: baseline;
-      padding: 1.75rem 0; border-bottom: 1px solid var(--line);
+    /* Three tiles side by side, cut by lines like the feature cards, each
+       marked with one of the logo's strokes. */
+    .values {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+      padding: 1px; background: var(--line);
     }
+    .value { display: flex; flex-direction: column; gap: 1rem; padding: 1.75rem; background: var(--bg-surface); }
+    .value::before { content: ""; width: 14px; height: 14px; margin-bottom: 1.5rem; background: var(--mark); }
+    .value:nth-child(1) { --mark: var(--brand-1); }
+    .value:nth-child(2) { --mark: var(--brand-2); }
+    .value:nth-child(3) { --mark: var(--brand-3); }
     .value h3 { font-size: clamp(1.6rem, 2.6vw, 1.875rem); line-height: 1.1; margin: 0; }
     .value p { margin: 0; color: var(--text-soft); font-size: 1.125rem; line-height: 1.5; text-wrap: pretty; }
 
@@ -542,22 +576,22 @@
     @media (max-width: 640px) {
       nav .theme { display: none; }
       .hero { padding-top: 3.5rem; }
-      /* The command wraps to two lines here, so the pill becomes a rounded box. */
-      .term { border-radius: 16px; }
+      /* The command wraps to two lines here. */
       .term pre { font-size: .76rem; padding: .85rem 1.1rem; }
       .term .nb { display: inline; }
       .copy { display: none; }
       .tabs button { height: 32px; padding: 0 .75rem; font-size: 13px; gap: .35rem; }
       .tabs button svg { display: none; }
-      .card { border-radius: 16px; }
-      .arch { border-radius: 16px; }
-      .value { grid-template-columns: 1fr; gap: .6rem; padding: 1.5rem 0; }
+      .values { grid-template-columns: minmax(0, 1fr); }
+      .value { padding: 1.5rem; }
+      .value::before { margin-bottom: .75rem; }
+      .agents li { height: 44px; padding: 0 1rem; font-size: 14px; }
       .clients { grid-template-columns: 1fr; }
       table { font-size: .9rem; }
       th, td { padding: .8rem .6rem; }
       th:first-child, td:first-child { padding-left: .9rem; }
       thead th { font-size: .9rem; }
-      thead th:nth-child(2) { font-size: 1rem; border-radius: 12px 12px 0 0; }
+      thead th:nth-child(2) { font-size: 1rem; }
       section { padding-top: 5.5rem; }
       .final { padding-top: 6rem; }
     }
