@@ -670,8 +670,8 @@
   // light-dark() values, which a canvas can't parse, so these mirror
   // --bg-raised, --line-strong and --text for each theme.
   const BUBBLE = {
-    light: { fill: 'rgb(255 255 255 / .96)', stroke: 'rgb(0 0 0 / .14)', text: '#171717' },
-    dark: { fill: 'rgb(41 41 45 / .96)', stroke: 'rgb(255 255 255 / .14)', text: '#F2F2F1' },
+    light: { fill: 'rgb(255 255 255 / .96)', stroke: '#D4D4D2', text: '#0A0A0B' },
+    dark: { fill: 'rgb(38 38 42 / .96)', stroke: '#3F3F46', text: '#F2F2F1' },
   }
   const darkScheme = matchMedia('(prefers-color-scheme: dark)')
   function pageTheme() {
@@ -691,7 +691,7 @@
     ctx.strokeStyle = colors.stroke
     ctx.lineWidth = 1
     ctx.beginPath()
-    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h, w, h, 4)
+    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h, w, h, h / 2)
     else ctx.rect(x - w / 2, y - h, w, h)
     ctx.fill(); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(x - 5, y - .5); ctx.lineTo(x, y + 6); ctx.lineTo(x + 5, y - .5); ctx.fill()
