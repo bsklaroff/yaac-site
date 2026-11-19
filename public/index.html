@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>yaac — Yet Another Agent Container</title>
-  <meta name="description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own. Open source and self-hosted.">
+  <meta name="description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform. Open source and self-hosted.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" data-scheme="light">
   <meta name="theme-color" content="#18181B" media="(prefers-color-scheme: dark)" data-scheme="dark">
   <meta property="og:title" content="yaac — Yet Another Agent Container">
-  <meta property="og:description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own.">
+  <meta property="og:description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform.">
   <meta property="og:image" content="https://yaac.dev/assets/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -199,9 +199,9 @@
     nav .wrap { display: flex; align-items: center; height: 64px; gap: 1.75rem; }
     .brand { display: flex; align-items: center; gap: .55rem; font-weight: 600; font-size: 1rem; text-decoration: none; text-transform: uppercase; letter-spacing: .06em; }
     .brand img { width: 26px; height: 26px; }
-    nav ul { display: flex; gap: 1.75rem; list-style: none; margin: 0 0 0 auto; padding: 0; font-size: 15px; }
-    nav ul a { color: var(--text-muted); text-decoration: none; transition: color .15s ease; }
-    nav ul a:hover { color: var(--text); }
+    nav .gh { display: flex; margin-left: auto; color: var(--text-muted); transition: color .15s ease; }
+    nav .gh:hover { color: var(--text); }
+    nav .gh svg { width: 20px; height: 20px; }
 
     /* ---------- hero ---------- */
     .hero { padding: 6.5rem 0 0; text-align: center; }
@@ -215,7 +215,7 @@
     #architecture h2 em { color: var(--ink-lilac); }
     #drivers h2 em { color: var(--ink-coral); }
     .final h2 em { color: var(--ink-lilac); }
-    .lede { font-size: clamp(1.1rem, 2vw, 1.25rem); line-height: 1.5; color: var(--text-muted); max-width: 39rem; margin: 0 auto 2.5rem; }
+    .lede { font-size: clamp(1.1rem, 2vw, 1.25rem); line-height: 1.5; color: var(--text-muted); max-width: 44rem; margin: 0 auto 2.5rem; }
     .cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
     .platform { margin: 1.1rem 0 0; font-size: 14px; color: var(--text-subtle); }
     .platform a { color: var(--text-muted); text-decoration-color: var(--ring); text-underline-offset: 3px; }
@@ -540,7 +540,6 @@
       .foot > :first-child { grid-column: 1 / -1; }
     }
     @media (max-width: 640px) {
-      nav ul li:not(.keep) { display: none; }
       nav .theme { display: none; }
       .hero { padding-top: 3.5rem; }
       /* The command wraps to two lines here, so the pill becomes a rounded box. */
@@ -659,12 +658,7 @@
   <nav>
     <div class="wrap">
       <a class="brand" href="#"><img src="assets/logo-mark.svg" alt="">yaac</a>
-      <ul>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#architecture">How it works</a></li>
-        <li><a href="#faq">FAQ</a></li>
-        <li class="keep"><a href="https://github.com/bsklaroff/yaac">GitHub</a></li>
-      </ul>
+      <a class="gh" href="https://github.com/bsklaroff/yaac" aria-label="GitHub" title="GitHub"><svg aria-hidden="true"><use href="#i-github"/></svg></a>
       <div class="theme icons" role="radiogroup" aria-label="Theme">
         <button type="button" role="radio" data-pref="system" aria-label="System" title="System"><svg aria-hidden="true"><use href="#i-monitor"/></svg></button>
         <button type="button" role="radio" data-pref="light" aria-label="Light" title="Light"><svg aria-hidden="true"><use href="#i-sun"/></svg></button>
@@ -676,8 +670,8 @@
 
   <header class="hero">
     <div class="wrap">
-      <h1>Skip permissions,<br><em>responsibly.</em></h1>
-      <p class="lede">Run coding agents in parallel, each in its own isolated container. Host yaac on your laptop, a server, or a Kubernetes cluster.</p>
+      <h1>You can self-host<br><em>everything</em></h1>
+      <p class="lede">Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform.</p>
       <div class="cta">
         <a class="btn primary download" href="https://github.com/bsklaroff/yaac/releases/latest">
           <svg aria-hidden="true"><use href="#i-apple"/></svg>Download for Mac
