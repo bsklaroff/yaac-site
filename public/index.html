@@ -7,7 +7,7 @@
   <meta name="description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own. Open source and self-hosted.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" data-scheme="light">
-  <meta name="theme-color" content="#202023" media="(prefers-color-scheme: dark)" data-scheme="dark">
+  <meta name="theme-color" content="#18181B" media="(prefers-color-scheme: dark)" data-scheme="dark">
   <meta property="og:title" content="yaac — Yet Another Agent Container">
   <meta property="og:description" content="Run coding agents in parallel, each in its own sandbox, on hardware you own.">
   <meta property="og:image" content="https://yaac.dev/assets/og.jpg">
@@ -29,14 +29,16 @@
     }
   </script>
   <link rel="preload" href="assets/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/eb-garamond-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/eb-garamond-latin-wght-italic.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     /*
-     * Design tokens: a subset of packages/frontend/src/styles/tokens.css in
-     * bsklaroff/yaac, copied verbatim. Flush and monochrome first: regions
-     * are cut by 1px lines, only things that float or press get a layered
-     * edge, and colour is for state (green ok, red failed). The accent marks
-     * focus and selection only. Corners are 4px on controls and boxes, square
-     * on full-width regions.
+     * Design tokens, after the website board of the yaac design canvas
+     * (yaac.dev v5). Dark is the board's palette on yaac's own #18181B page
+     * (the board's is black): cards cut by one 1px ring, pill controls,
+     * EB Garamond headlines over Geist. Light mirrors it. Colour is for state (green ok, red blocked) and the logo's
+     * four strokes, which mark the section labels and each headline's italic
+     * half. The accent marks focus only.
      *
      * Every colour is written once as light-dark(light, dark), so a theme is
      * only a color-scheme: data-theme on <html> picks light, dark, or the
@@ -48,25 +50,47 @@
     [data-theme="light"] { color-scheme: light; }
 
     :root {
-      --bg-shell: light-dark(#F6F6F5, #18181B);
-      --bg-surface: light-dark(#FFFFFF, #202023);
-      --bg-raised: light-dark(#FFFFFF, #29292D);
-      --bg-sunken: light-dark(#F6F6F5, #1B1B1E);
-      --bg-hover: light-dark(rgb(0 0 0 / 0.035), rgb(255 255 255 / 0.05));
-      --bg-selected: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
-      --text-on-primary: light-dark(#FAFAFA, #F2F2F1);
+      --bg-shell: light-dark(#FFFFFF, #18181B);
+      --bg-surface: light-dark(#FFFFFF, #18181B);
+      --bg-card: light-dark(#F7F7F6, #1F1F23);
+      --bg-raised: light-dark(#FFFFFF, #26262A);
+      --bg-well: light-dark(#FFFFFF, #151518);
+      --bg-code: light-dark(#F4F4F3, #1F1F23);
+      --bg-band: light-dark(#F0F0EF, #222226);
+      --bg-hover: light-dark(rgb(0 0 0 / 0.04), rgb(255 255 255 / 0.06));
+      --bg-selected: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.05));
 
-      --line: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
-      --line-strong: light-dark(rgb(0 0 0 / 0.14), rgb(255 255 255 / 0.14));
+      --line: light-dark(#E6E6E4, #2C2C31);
+      --line-soft: light-dark(#EEEEEC, #252529);
+      --line-strong: light-dark(#D4D4D2, #3F3F46);
+      /* The ring around secondary buttons, chips and the copy button. */
+      --ring: var(--line-strong);
+      /* The ring around a pill track (tabs, the theme switch, the server picker). */
+      --track: light-dark(#E2E2E0, #34343A);
 
-      --text: light-dark(#171717, #F2F2F1);
-      --text-muted: light-dark(#5C5C5B, #B4B4B1);
-      --text-subtle: light-dark(#6A6A69, #97979A);
+      --text: light-dark(#0A0A0B, #F2F2F1);
+      --text-muted: light-dark(#55555B, #B9B9BF);
+      --text-soft: light-dark(#66666C, #A9A9B0);
+      --text-subtle: light-dark(#6B6B71, #8C8C93);
+      --text-on-primary: light-dark(#FFFFFF, #000000);
+
+      --fill-primary: light-dark(#0A0A0B, #F2F2F1);
+      --fill-primary-hover: light-dark(#2A2A2E, #FFFFFF);
 
       --accent: light-dark(#4353D9, #97A6FF);
-      --info: light-dark(#2563EB, #82B8FF);
-      --success: light-dark(#157F3C, #66D396);
-      --danger: light-dark(#C4302B, #FF8178);
+      --success: light-dark(#157F3C, #76CF8A);
+      --danger: light-dark(#C4302B, #FF958D);
+
+      /* The logo's four strokes. */
+      --brand-1: #FF958D;
+      --brand-2: #F4A25C;
+      --brand-3: #76CF8A;
+      --brand-4: #B6A8FF;
+      /* The same four for text: a headline's italic half. */
+      --ink-coral: var(--brand-1);
+      --ink-orange: var(--brand-2);
+      --ink-green: var(--brand-3);
+      --ink-lilac: var(--brand-4);
 
       /* Avatar fills (YAvatar), from the project colour families. */
       --proj-on: light-dark(#FFFFFF, #18181B);
@@ -76,55 +100,27 @@
       --proj-sky-fill: light-dark(#3FABDC, #72CAF6);
       --proj-violet-fill: light-dark(#9793E6, #B6B4FF);
 
-      /* Edges for things that press or float. */
-      --edge-control:
-        inset 0 1px 0 light-dark(transparent, rgb(255 255 255 / 0.10)),
-        inset 0 -1px 0 light-dark(rgb(0 0 0 / 0.05), transparent),
-        inset 0 0 0 1px light-dark(transparent, rgb(255 255 255 / 0.03)),
-        0 0 0 1px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.60)),
-        0 4px 6px -1px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.20)),
-        0 2px 4px -2px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.20));
-      --edge-primary:
-        inset 0 1px 0 light-dark(#525252, rgb(255 255 255 / 0.14)),
-        0 0 0 1px light-dark(#0A0A0A, rgb(0 0 0 / 0.60)),
-        0 4px 6px -1px light-dark(rgb(0 0 0 / 0.10), transparent),
-        0 2px 4px -2px light-dark(rgb(0 0 0 / 0.10), transparent),
-        0 2px 4px -1px light-dark(transparent, rgb(0 0 0 / 0.30));
-      --edge-pressed:
-        inset 0 1px 1px light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.03)),
-        0 0 0 1px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.60));
-      --edge-inset: inset 0 0 0 1px light-dark(rgb(0 0 0 / 0.09), rgb(255 255 255 / 0.08));
-      --edge-raised:
-        inset 0 1px 0 light-dark(transparent, rgb(255 255 255 / 0.07)),
+      /* One ring for every box; the screenshot frame and floating chips also
+         cast a shadow. */
+      --edge: inset 0 0 0 1px var(--line);
+      --shadow-frame:
         0 0 0 1px light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.10)),
-        0 4px 8px -2px light-dark(rgb(0 0 0 / 0.06), transparent),
-        0 16px 36px -10px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.55));
-
-      /* Control fills: a solid base under a top-lit gradient. */
-      --fill-control:
-        linear-gradient(180deg, light-dark(rgb(0 0 0 / 0), rgb(255 255 255 / 0.08)), light-dark(rgb(0 0 0 / 0.025), rgb(255 255 255 / 0))),
-        light-dark(#FFFFFF, #27272B);
-      --fill-control-hover:
-        linear-gradient(180deg, light-dark(rgb(0 0 0 / 0), rgb(255 255 255 / 0.08)), light-dark(rgb(0 0 0 / 0.025), rgb(255 255 255 / 0))),
-        light-dark(#FAFAFA, #2F2F33);
-      --fill-pressed: light-dark(#F1F1F0, #1F1F22);
-      --fill-primary:
-        linear-gradient(180deg, light-dark(rgb(255 255 255 / 0.20), rgb(255 255 255 / 0.10)), rgb(255 255 255 / 0)),
-        light-dark(#171717, #4A4A50);
-      --fill-primary-hover:
-        linear-gradient(180deg, light-dark(rgb(255 255 255 / 0.20), rgb(255 255 255 / 0.10)), rgb(255 255 255 / 0)),
-        light-dark(#262626, #55555B);
+        0 30px 80px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.80));
+      --shadow-float: 0 8px 24px light-dark(rgb(0 0 0 / 0.10), rgb(0 0 0 / 0.60));
 
       /* The site's own: the architecture diagram's grid, fainter than a line. */
       --grid: light-dark(rgb(0 0 0 / 0.04), rgb(255 255 255 / 0.035));
 
-      /* Geist for text, Geist Mono for real code only: commands, hosts, env names. */
+      /* EB Garamond for headlines, Geist for text, Geist Mono for real code
+         only: commands, hosts, env names. */
+      --serif: "EB Garamond Variable", "EB Garamond", Georgia, serif;
       --sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       --mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     }
 
     /* The fonts yaac bundles (@fontsource-variable/geist and geist-mono
-       5.3.0), latin subset, under the OFL (assets/fonts/OFL.txt). */
+       5.3.0), and EB Garamond (@fontsource-variable/eb-garamond 5.3.0), latin
+       subsets, under the OFL (assets/fonts/OFL.txt and OFL-EBGaramond.txt). */
     @font-face {
       font-family: "Geist Variable"; font-style: normal; font-weight: 100 900; font-display: swap;
       src: url("assets/fonts/geist-latin-wght-normal.woff2") format("woff2");
@@ -132,6 +128,14 @@
     @font-face {
       font-family: "Geist Mono Variable"; font-style: normal; font-weight: 100 900; font-display: swap;
       src: url("assets/fonts/geist-mono-latin-wght-normal.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "EB Garamond Variable"; font-style: normal; font-weight: 400 800; font-display: swap;
+      src: url("assets/fonts/eb-garamond-latin-wght-normal.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "EB Garamond Variable"; font-style: italic; font-weight: 400 800; font-display: swap;
+      src: url("assets/fonts/eb-garamond-latin-wght-italic.woff2") format("woff2");
     }
 
     * { box-sizing: border-box; }
@@ -143,111 +147,121 @@
     }
     a { color: inherit; }
     code { font-family: var(--mono); }
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .wrap { max-width: 1160px; margin: 0 auto; padding: 0 1.5rem; }
     .narrow { max-width: 920px; }
     h1, h2, h3, .lede { text-wrap: balance; }
+    /* Headlines: the board's serif, regular weight, set tight. */
+    h1, h2, .card h3, .value h3, summary {
+      font-family: var(--serif); font-weight: 400; letter-spacing: -.02em;
+    }
 
     /* ---------- buttons ---------- */
+    /* Pills: primary is solid, secondary a 1px ring. */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-      height: 40px; padding: 0 1rem; border: 0; border-radius: 4px; cursor: pointer;
-      font: 500 14px/1 var(--sans); text-decoration: none; white-space: nowrap;
-      background: var(--fill-control); box-shadow: var(--edge-control); color: var(--text);
-      transition: background .1s ease, box-shadow .1s ease;
+      height: 48px; padding: 0 1.5rem; border: 0; border-radius: 999px; cursor: pointer;
+      font: 500 15px/1 var(--sans); text-decoration: none; white-space: nowrap;
+      background: transparent; box-shadow: inset 0 0 0 1px var(--ring); color: var(--text);
+      transition: background .15s ease, transform .1s ease;
     }
-    .btn:hover { background: var(--fill-control-hover); }
-    .btn:active { background: var(--fill-pressed); box-shadow: var(--edge-pressed); }
+    .btn:hover { background: var(--bg-hover); }
+    .btn:active { transform: scale(.98); }
     .btn svg { width: 16px; height: 16px; flex: none; }
-    .btn.primary { background: var(--fill-primary); box-shadow: var(--edge-primary); color: var(--text-on-primary); }
+    .btn.primary { background: var(--fill-primary); box-shadow: none; color: var(--text-on-primary); }
     .btn.primary:hover { background: var(--fill-primary-hover); }
-    .btn.primary:active { box-shadow: var(--edge-pressed); }
-    .btn.sm { height: 28px; padding: 0 .625rem; font-size: 12px; gap: .375rem; }
+    .btn.sm { height: 34px; padding: 0 1rem; font-size: 13.5px; gap: .375rem; }
 
     /* ---------- theme switch ---------- */
-    /* A segmented control, like yaac's own theme setting (YSegmented). */
+    /* A pill track; the chosen option is a solid pill. */
     .theme {
-      display: inline-flex; gap: 2px; padding: 2px; border-radius: 4px;
-      background: var(--bg-sunken); box-shadow: var(--edge-inset);
+      display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;
+      box-shadow: inset 0 0 0 1px var(--track);
     }
     .theme button {
       display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
-      height: 24px; padding: 0 .5rem; border: 0; border-radius: 4px; cursor: pointer;
-      font: 500 12px/1 var(--sans); color: var(--text-muted); background: none;
-      transition: background .1s ease, box-shadow .1s ease, color .1s ease;
+      height: 24px; padding: 0 .6rem; border: 0; border-radius: 999px; cursor: pointer;
+      font: 400 12px/1 var(--sans); color: var(--text-soft); background: none;
+      transition: background .15s ease, color .15s ease;
     }
     .theme button:hover { color: var(--text); }
-    .theme button[aria-checked="true"] { background: var(--fill-control); box-shadow: var(--edge-control); color: var(--text); }
+    .theme button[aria-checked="true"] { background: var(--fill-primary); color: var(--text-on-primary); }
     .theme svg { width: 14px; height: 14px; flex: none; }
     .theme.icons button { width: 24px; padding: 0; }
 
     /* ---------- nav ---------- */
     nav {
       position: sticky; top: 0; z-index: 20;
-      backdrop-filter: blur(14px) saturate(140%);
-      background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
-      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px);
+      background: color-mix(in srgb, var(--bg-surface) 78%, transparent);
+      border-bottom: 1px solid var(--line-soft);
     }
-    nav .wrap { display: flex; align-items: center; height: 52px; gap: 1.5rem; }
-    .brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: 1.05rem; text-decoration: none; letter-spacing: -.01em; }
+    nav .wrap { display: flex; align-items: center; height: 64px; gap: 1.75rem; }
+    .brand { display: flex; align-items: center; gap: .55rem; font-weight: 600; font-size: 1rem; text-decoration: none; text-transform: uppercase; letter-spacing: .06em; }
     .brand img { width: 26px; height: 26px; }
-    nav ul { display: flex; gap: 1.5rem; list-style: none; margin: 0 0 0 auto; padding: 0; font-size: 14px; }
-    nav ul a { color: var(--text-muted); text-decoration: none; }
+    nav ul { display: flex; gap: 1.75rem; list-style: none; margin: 0 0 0 auto; padding: 0; font-size: 15px; }
+    nav ul a { color: var(--text-muted); text-decoration: none; transition: color .15s ease; }
     nav ul a:hover { color: var(--text); }
 
     /* ---------- hero ---------- */
-    .hero { padding: 6rem 0 0; text-align: center; }
+    .hero { padding: 6.5rem 0 0; text-align: center; }
     h1 {
-      font-size: clamp(2.3rem, 6vw, 4.5rem);
-      line-height: 1.04; letter-spacing: -.045em; font-weight: 600; margin: 0 0 1.5rem;
+      font-size: clamp(2.75rem, 7.5vw, 5.5rem);
+      line-height: 1.06; margin: 0 0 1.75rem;
     }
-    h1 em { font-style: normal; color: var(--text-subtle); }
-    .lede { font-size: clamp(1.05rem, 2vw, 1.2rem); color: var(--text-muted); max-width: 39rem; margin: 0 auto 2.25rem; }
+    /* A headline's second half is italic, in one of the logo's colours. */
+    h1 em, h2 em { font-style: italic; color: var(--ink-orange); }
+    #features h2 em { color: var(--ink-green); }
+    #architecture h2 em { color: var(--ink-lilac); }
+    #drivers h2 em { color: var(--ink-coral); }
+    .final h2 em { color: var(--ink-lilac); }
+    .lede { font-size: clamp(1.1rem, 2vw, 1.25rem); line-height: 1.5; color: var(--text-muted); max-width: 39rem; margin: 0 auto 2.5rem; }
     .cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
-    .platform { margin: 1rem 0 0; font-size: 13px; color: var(--text-subtle); }
-    .platform a { color: var(--text-muted); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-    .platform a:hover { color: var(--text); }
+    .platform { margin: 1.1rem 0 0; font-size: 14px; color: var(--text-subtle); }
+    .platform a { color: var(--text-muted); text-decoration-color: var(--ring); text-underline-offset: 3px; }
+    .platform a:hover { color: var(--text); text-decoration-color: var(--text-subtle); }
 
-    .brew { max-width: 520px; margin: 2.25rem auto 0; text-align: left; }
-    .term { position: relative; border-radius: 4px; background: var(--bg-sunken); box-shadow: var(--edge-inset); }
-    .term pre { margin: 0; padding: .9rem 4.75rem .9rem 1.15rem; overflow-x: auto; font: .84rem/1.85 var(--mono); }
+    /* The install command: a code pill. */
+    .brew { max-width: 540px; margin: 2.5rem auto 0; text-align: left; }
+    .term { position: relative; border-radius: 999px; background: var(--bg-code); box-shadow: var(--edge); }
+    .term pre { margin: 0; padding: .7rem 4.75rem .7rem 1.25rem; overflow-x: auto; font: .9rem/1.85 var(--mono); color: var(--text); }
     .term .p { color: var(--text-subtle); user-select: none; }
     .term .nb { display: none; }
     .copy {
-      position: absolute; top: 50%; right: .6rem; transform: translateY(-50%);
-      height: 24px; padding: 0 .5rem; border: 0; border-radius: 4px; cursor: pointer;
-      font: 500 12px/1 var(--sans); color: var(--text);
-      background: var(--fill-control); box-shadow: var(--edge-control);
+      position: absolute; top: 50%; right: .55rem; transform: translateY(-50%);
+      height: 30px; padding: 0 .8rem; border: 0; border-radius: 999px; cursor: pointer;
+      font: 500 12.5px/1 var(--sans); color: var(--text);
+      background: transparent; box-shadow: inset 0 0 0 1px var(--ring);
+      transition: background .15s ease;
     }
-    .copy:hover { background: var(--fill-control-hover); }
-    .copy:active { background: var(--fill-pressed); box-shadow: var(--edge-pressed); }
+    .copy:hover { background: var(--bg-hover); }
 
-    .agents { margin: 2.75rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .75rem 2rem; color: var(--text-subtle); font-size: 13px; }
+    .agents { margin: 3rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .75rem 2rem; color: var(--text-subtle); font-size: 15px; }
     .agents ul { display: contents; list-style: none; }
-    .agents li { display: inline-flex; align-items: center; gap: .5rem; color: var(--text-muted); font-weight: 500; font-size: .92rem; }
+    .agents li { display: inline-flex; align-items: center; gap: .5rem; color: var(--text-muted); font-size: 15px; }
     .agents svg { width: 18px; height: 18px; }
 
     /* ---------- showcase ---------- */
-    .showcase { margin-top: 4rem; }
+    .showcase { margin-top: 4.5rem; }
     .tabs {
-      display: inline-flex; padding: 3px; gap: 2px; border-radius: 4px;
-      background: var(--bg-sunken); box-shadow: var(--edge-inset);
+      display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px;
+      box-shadow: inset 0 0 0 1px var(--track);
       max-width: 100%; overflow-x: auto; scrollbar-width: none;
     }
     .tabs button {
-      font: 500 13px var(--sans); color: var(--text-muted); background: none; border: 0; cursor: pointer;
-      height: 30px; padding: 0 .875rem; border-radius: 4px; white-space: nowrap;
-      display: inline-flex; align-items: center; gap: .4rem;
-      transition: background .1s ease, box-shadow .1s ease, color .1s ease;
+      font: 400 15px var(--sans); color: var(--text-soft); background: none; border: 0; cursor: pointer;
+      height: 34px; padding: 0 1.1rem; border-radius: 999px; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: .45rem;
+      transition: background .15s ease, color .15s ease;
     }
-    .tabs button svg { width: 14px; height: 14px; }
+    .tabs button svg { width: 15px; height: 15px; }
     .tabs button:hover { color: var(--text); }
-    .tabs button[aria-selected="true"] { background: var(--fill-control); box-shadow: var(--edge-control); color: var(--text); }
-    .caption { min-height: 1.6em; margin: 1.1rem auto 1.75rem; color: var(--text-muted); font-size: .98rem; max-width: 40rem; }
+    .tabs button[aria-selected="true"] { background: var(--fill-primary); color: var(--text-on-primary); }
+    .caption { min-height: 1.6em; margin: 1.25rem auto 2rem; color: var(--text-muted); font-size: 1.05rem; max-width: 40rem; }
     .stage { position: relative; }
     .frame {
-      position: relative; border-radius: 4px; overflow: hidden; background: var(--bg-sunken);
-      box-shadow: var(--edge-raised);
+      position: relative; border-radius: 10px; overflow: hidden; background: var(--bg-card);
+      box-shadow: var(--shadow-frame);
       /* The panels share one grid cell, so the screenshots size the frame. */
       display: grid; cursor: zoom-in;
     }
@@ -256,14 +270,14 @@
     .panel > img { width: 100%; height: auto; display: block; }
     .zoom {
       position: absolute; top: .75rem; right: .75rem; z-index: 2;
-      width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer;
-      border: 0; border-radius: 4px; color: var(--text);
-      background: var(--fill-control); box-shadow: var(--edge-control);
-      opacity: 0; transition: opacity .2s ease, background .1s ease;
+      width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
+      border: 0; border-radius: 50%; color: var(--text);
+      background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--ring), var(--shadow-float);
+      opacity: 0; transition: opacity .2s ease, background .15s ease;
     }
     .zoom svg { width: 16px; height: 16px; }
     .frame:hover .zoom, .zoom:focus-visible { opacity: 1; }
-    .zoom:hover { background: var(--fill-control-hover); }
+    .zoom:hover { background: var(--bg-card); }
     @media (hover: none) { .zoom { opacity: 1; } }
 
     /* ---------- screenshot lightbox ---------- */
@@ -297,54 +311,65 @@
       display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem;
     }
     .lb-bar > * { pointer-events: auto; }
-    .lb-title, .lb-caption > span { background: var(--bg-raised); border-radius: 4px; box-shadow: var(--edge-raised); }
-    .lb-title { font-weight: 600; font-size: 14px; padding: .4rem .75rem; }
+    .lb-title, .lb-caption > span { background: var(--bg-raised); border-radius: 12px; box-shadow: var(--edge), var(--shadow-float); }
+    .lb-title { font-weight: 500; font-size: 14px; padding: .45rem .85rem; }
     .lb-actions { display: flex; gap: .4rem; }
     .lb-btn {
-      width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; color: var(--text);
-      border: 0; border-radius: 4px; background: var(--fill-control); box-shadow: var(--edge-control);
+      width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; color: var(--text);
+      border: 0; border-radius: 50%; background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--ring), var(--shadow-float);
+      transition: background .15s ease;
     }
     .lb-btn[hidden] { display: none; }
-    .lb-btn:hover { background: var(--fill-control-hover); }
-    .lb-btn:active { background: var(--fill-pressed); box-shadow: var(--edge-pressed); }
+    .lb-btn:hover { background: var(--bg-card); }
     .lb-btn svg { width: 16px; height: 16px; }
     .lb-caption {
       position: absolute; inset: auto 0 0; z-index: 1; pointer-events: none; margin: 0;
       padding: .75rem; text-align: center; color: var(--text-muted); font-size: 14px;
       display: grid; justify-items: center;
     }
-    .lb-caption > span { pointer-events: auto; display: grid; gap: .25rem; padding: .5rem .9rem; max-width: 40rem; }
+    .lb-caption > span { pointer-events: auto; display: grid; gap: .25rem; padding: .55rem 1rem; max-width: 40rem; }
     .lb-stage.actual ~ .lb-caption { display: none; }
     .lb-hint { font-size: 12px; color: var(--text-subtle); }
     .lb-hint .touch { display: none; }
     @media (hover: none) { .lb-hint .touch { display: inline; } .lb-hint .mouse { display: none; } }
     kbd {
-      display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 4px;
-      font: 400 11px/1 var(--sans); color: var(--text-subtle); box-shadow: var(--edge-inset);
+      display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 6px;
+      font: 400 11px/1 var(--sans); color: var(--text-subtle); box-shadow: inset 0 0 0 1px var(--ring);
     }
     kbd svg { width: 11px; height: 11px; }
     .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
     /* ---------- sections ---------- */
-    section { padding: 7rem 0 0; }
-    .head { max-width: 40rem; margin-bottom: 2.75rem; }
-    #features .head { max-width: 46rem; }
-    .head.center { text-align: center; margin-left: auto; margin-right: auto; max-width: 46rem; }
-    .kicker { font: 500 13px/1.4 var(--sans); color: var(--text-subtle); margin-bottom: .75rem; }
-    h2 { font-size: clamp(1.9rem, 4vw, 2.75rem); letter-spacing: -.035em; line-height: 1.1; margin: 0 0 .9rem; font-weight: 600; }
-    .head p { color: var(--text-muted); margin: 0; font-size: 1.08rem; text-wrap: pretty; }
+    section { padding: 9.5rem 0 0; }
+    .head { max-width: 44rem; margin-bottom: 3.5rem; }
+    #features .head { max-width: 50rem; }
+    .head.center { text-align: center; margin-left: auto; margin-right: auto; max-width: 50rem; }
+    /* Section labels carry the logo's four strokes. */
+    .kicker {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem;
+      font: 400 14.5px/1.4 var(--sans); letter-spacing: .02em; color: var(--text-muted);
+    }
+    .kicker::before {
+      content: ""; width: 18px; height: 14px; flex: none;
+      background: linear-gradient(90deg,
+        var(--brand-1) 0 3px, transparent 3px 5px, var(--brand-2) 5px 8px, transparent 8px 10px,
+        var(--brand-3) 10px 13px, transparent 13px 15px, var(--brand-4) 15px 18px);
+    }
+    .head.center .kicker { justify-content: center; }
+    h2 { font-size: clamp(2.25rem, 5.5vw, 4.5rem); line-height: 1.1; margin: 0 0 1.4rem; }
+    .head p { color: var(--text-muted); margin: 0; font-size: clamp(1.1rem, 1.8vw, 1.25rem); line-height: 1.45; text-wrap: pretty; }
 
     /* ---------- feature cards ---------- */
-    .bento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .bento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
     .card {
-      min-width: 0; background: var(--bg-surface); box-shadow: var(--edge-inset);
-      border-radius: 4px; padding: 1.75rem; display: flex; flex-direction: column;
+      min-width: 0; background: var(--bg-card); box-shadow: var(--edge);
+      border-radius: 20px; padding: 1.75rem; display: flex; flex-direction: column;
     }
-    .card h3 { font-size: 1.2rem; font-weight: 600; letter-spacing: -.02em; margin: 0 0 .9rem; }
-    .ticks { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: .5rem; align-content: start; font-size: .94rem; color: var(--text-muted); }
-    .ticks li { position: relative; padding-left: 1.5rem; }
+    .card h3 { font-size: clamp(1.65rem, 2.4vw, 2rem); line-height: 1; margin: 0 0 1.1rem; }
+    .ticks { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: .55rem; align-content: start; font-size: 1.0625rem; line-height: 1.5; color: var(--text-soft); }
+    .ticks li { position: relative; padding-left: 1.6rem; }
     .ticks li::before {
-      content: ""; position: absolute; left: 0; top: .32em; width: 14px; height: 14px;
+      content: ""; position: absolute; left: 0; top: .3em; width: 15px; height: 15px;
       background: var(--text-subtle);
       mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
     }
@@ -356,13 +381,14 @@
       .bento { grid-template-rows: repeat(3, auto); row-gap: 0; }
       .card { grid-row: span 3; display: grid; grid-template-rows: subgrid; }
     }
-    .config, .switcher, .snippet { border-radius: 4px; background: var(--bg-sunken); box-shadow: var(--edge-inset); }
-    .config { padding: .4rem .4rem .55rem; font-size: .8rem; }
-    .config-head { padding: .45rem .55rem .2rem; color: var(--text-subtle); font-size: 12px; font-weight: 500; }
-    .config-label { padding: .6rem .55rem .3rem; font: 500 12px var(--sans); color: var(--text-subtle); }
+    /* The panels inside a card sit in wells, a step off the card toward the page. */
+    .config, .switcher, .snippet { border-radius: 12px; background: var(--bg-well); box-shadow: var(--edge); }
+    .config { padding: .45rem .45rem .6rem; font-size: .8rem; }
+    .config-head { padding: .45rem .55rem .2rem; color: var(--text-subtle); font-size: 12px; }
+    .config-label { padding: .6rem .55rem .3rem; font: 400 12px var(--sans); color: var(--text-subtle); }
     .config code { font: .72rem var(--mono); color: var(--text); }
-    .secret, .host { display: grid; align-items: center; gap: .6rem; padding: .32rem .55rem; border-radius: 4px; }
-    .secret { grid-template-columns: auto 1fr auto; background: var(--bg-surface); box-shadow: var(--edge-inset); margin: 0 .15rem .3rem; min-width: 0; }
+    .secret, .host { display: grid; align-items: center; gap: .6rem; padding: .32rem .55rem; border-radius: 8px; }
+    .secret { grid-template-columns: auto 1fr auto; background: var(--bg-card); box-shadow: var(--edge); margin: 0 .15rem .3rem; min-width: 0; }
     .secret .dots { overflow: hidden; white-space: nowrap; min-width: 0; }
     .secret .dots { color: var(--text-subtle); letter-spacing: .05em; font-size: .7rem; }
     .secret .to { font: .66rem var(--mono); color: var(--text-muted); }
@@ -373,10 +399,10 @@
     .host.blocked i { background: var(--danger); }
     .host.blocked code { color: var(--text-subtle); }
     .host.blocked span { color: var(--danger); }
-    .switcher { padding: .4rem; font-size: .84rem; display: flex; flex-direction: column; }
-    .switcher-head { display: flex; align-items: center; gap: .5rem; padding: .45rem .55rem .55rem; color: var(--text-subtle); font-size: 12px; font-weight: 500; }
+    .switcher { padding: .45rem; font-size: .84rem; display: flex; flex-direction: column; }
+    .switcher-head { display: flex; align-items: center; gap: .5rem; padding: .45rem .55rem .55rem; color: var(--text-subtle); font-size: 12px; }
     .switcher-head svg { width: 14px; height: 14px; }
-    .who { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .45rem .55rem; border-radius: 4px; }
+    .who { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .65rem; padding: .45rem .55rem; border-radius: 8px; }
     .who.selected { background: var(--bg-selected); }
     /* YAvatar: a project colour's fill, the initial on it. */
     .avatar {
@@ -399,99 +425,103 @@
     /* ---------- architecture ---------- */
     .arch {
       display: grid; grid-template-columns: 1fr auto 1.15fr auto 1.6fr; align-items: center;
-      padding: 2.5rem; border-radius: 4px; box-shadow: var(--edge-inset);
+      padding: 2.5rem; border-radius: 22px; box-shadow: var(--edge);
       background:
         linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
         linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
-        var(--bg-sunken);
+        var(--bg-card);
     }
-    .node { border-radius: 4px; background: var(--bg-surface); box-shadow: var(--edge-inset); padding: 1.1rem 1.15rem; }
-    .node h4 { margin: 0 0 .75rem; font-size: .95rem; font-weight: 600; letter-spacing: -.01em; display: flex; align-items: center; gap: .5rem; }
+    .node { border-radius: 14px; background: var(--bg-well); box-shadow: var(--edge); padding: 1.15rem 1.2rem; }
+    .node h4 { margin: 0 0 .8rem; font-size: 1rem; font-weight: 500; letter-spacing: -.01em; display: flex; align-items: center; gap: .5rem; }
     .node h4 img { width: 20px; height: 20px; }
-    .node .sub { font: 500 12px var(--sans); color: var(--text-subtle); margin-bottom: .6rem; }
+    .node .sub { font: 400 12.5px var(--sans); color: var(--text-subtle); margin-bottom: .65rem; }
     .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .servers { display: flex; gap: 2px; padding: 2px; margin: 0 0 .85rem; border-radius: 4px; background: var(--bg-sunken); box-shadow: var(--edge-inset); }
-    .servers span { flex: 1; text-align: center; font: 500 12px/1 var(--sans); color: var(--text-muted); padding: .4rem 0; border-radius: 4px; }
-    .servers .on { background: var(--fill-control); box-shadow: var(--edge-control); color: var(--text); }
-    .chip { display: inline-flex; align-items: center; height: 22px; font-size: 12px; padding: 0 .5rem; border-radius: 4px; box-shadow: var(--edge-inset); color: var(--text-muted); white-space: nowrap; }
+    .servers { display: flex; gap: 2px; padding: 3px; margin: 0 0 .9rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--track); }
+    .servers span { flex: 1; text-align: center; font: 400 12.5px/1 var(--sans); color: var(--text-soft); padding: .45rem 0; border-radius: 999px; }
+    .servers .on { background: var(--fill-primary); color: var(--text-on-primary); }
+    .chip { display: inline-flex; align-items: center; height: 24px; font-size: 12.5px; padding: 0 .65rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); color: var(--text-muted); white-space: nowrap; }
     .clients { display: grid; gap: .6rem; }
-    .client { display: flex; align-items: center; gap: .65rem; padding: .7rem .9rem; border-radius: 4px; background: var(--bg-surface); box-shadow: var(--edge-inset); font-size: 14px; font-weight: 500; }
+    .client { display: flex; align-items: center; gap: .65rem; padding: .75rem .95rem; border-radius: 12px; background: var(--bg-well); box-shadow: var(--edge); font-size: 15px; }
     .client svg { width: 16px; height: 16px; color: var(--text-muted); }
     .link { position: relative; width: 74px; height: 2px; margin: 0 .25rem; }
     .link::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--text-subtle) 0 6px, transparent 6px 11px); opacity: .6; }
-    .link span { position: absolute; left: 50%; bottom: 9px; transform: translateX(-50%); font: 500 12px var(--sans); color: var(--text-subtle); white-space: nowrap; }
-    .server { box-shadow: var(--edge-raised); }
+    .link span { position: absolute; left: 50%; bottom: 9px; transform: translateX(-50%); font: 400 12.5px var(--sans); color: var(--text-subtle); white-space: nowrap; }
+    .server { box-shadow: inset 0 0 0 1px var(--ring); }
     .pods { display: grid; gap: .55rem; }
-    .pod { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .6rem .75rem; border-radius: 4px; background: var(--bg-sunken); border: 1px dashed var(--line-strong); font-size: 13px; line-height: 1.35; }
+    .pod { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; padding: .6rem .8rem; border-radius: 10px; background: var(--bg-card); border: 1px dashed var(--ring); font-size: 13px; line-height: 1.35; }
     .pod svg { width: 16px; height: 16px; }
     .pod .meta { font-size: 12px; color: var(--text-subtle); }
-    .pod .tag { font: 500 11px var(--sans); color: var(--text-muted); box-shadow: var(--edge-inset); padding: .15rem .4rem; border-radius: 4px; }
-    .mama { margin-top: .7rem; font-size: 12px; color: var(--text-subtle); display: flex; align-items: center; gap: .5rem; }
+    .pod .tag { font: 400 11px var(--sans); color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--ring); padding: .15rem .5rem; border-radius: 999px; }
+    .mama { margin-top: .75rem; font-size: 12px; color: var(--text-subtle); display: flex; align-items: center; gap: .5rem; }
     .mama code { color: var(--text-muted); }
     .mama svg { width: 13px; height: 13px; flex: none; }
-    .egress { margin-top: .8rem; display: flex; align-items: center; gap: .5rem; font-size: 13px; color: var(--text-muted); }
+    .egress { margin-top: .85rem; display: flex; align-items: center; gap: .5rem; font-size: 13px; color: var(--text-muted); }
     .egress svg { width: 14px; height: 14px; color: var(--text-muted); flex: none; }
 
     /* ---------- drivers table ---------- */
-    .table { border: 1px solid var(--line); border-radius: 4px; overflow-x: auto; background: var(--bg-surface); }
-    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-    th, td { text-align: left; padding: .95rem 1.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-    tr:last-child th, tr:last-child td { border-bottom: 0; }
-    thead th { font: 500 12px var(--sans); color: var(--text-subtle); background: var(--bg-sunken); }
-    thead th:nth-child(2) { color: var(--text); font-weight: 600; }
-    tbody th { font-weight: 500; color: var(--text); width: 22%; }
+    /* No box: rows are cut by lines, and the Kubernetes column sits on a band. */
+    .table { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 1.0625rem; line-height: 1.5; }
+    th, td { text-align: left; padding: 1.1rem 1.4rem; border-top: 1px solid var(--line); vertical-align: top; }
+    tbody th { padding-left: 0; }
+    thead th { border-top: 0; padding-top: 1.1rem; padding-bottom: 1rem; font: 400 1.0625rem var(--sans); color: var(--text-soft); }
+    thead th:nth-child(2) { color: var(--text); font-size: 1.25rem; border-radius: 16px 16px 0 0; }
+    thead th:nth-child(2), tbody td:nth-of-type(1) { background: var(--bg-band); }
+    tbody th { font-weight: 400; color: var(--text); width: 22%; }
     td { color: var(--text-muted); width: 39%; }
-    td code { font-size: .82em; color: var(--text); }
-    td a { color: var(--text); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+    td code { font-size: .84em; color: var(--text); }
+    td a { color: var(--text); text-decoration: underline; text-decoration-color: var(--ring); text-underline-offset: 3px; }
     td a:hover { text-decoration-color: var(--text); }
 
     /* ---------- values ---------- */
     .values { border-top: 1px solid var(--line); }
     .value {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 2rem; align-items: baseline;
-      padding: 2rem 0; border-bottom: 1px solid var(--line);
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 2.5rem; align-items: baseline;
+      padding: 1.75rem 0; border-bottom: 1px solid var(--line);
     }
-    .value h3 { font-size: clamp(1.35rem, 2.6vw, 1.85rem); font-weight: 600; letter-spacing: -.03em; line-height: 1.15; margin: 0; }
-    .value p { margin: 0; color: var(--text-muted); font-size: 1.08rem; text-wrap: pretty; }
+    .value h3 { font-size: clamp(1.6rem, 2.6vw, 1.875rem); line-height: 1.1; margin: 0; }
+    .value p { margin: 0; color: var(--text-soft); font-size: 1.125rem; line-height: 1.5; text-wrap: pretty; }
 
     /* ---------- faq ---------- */
     .faq { display: grid; grid-template-columns: 1fr 1.7fr; gap: 3rem; }
     .faq .head { margin: 0; }
+    #faq h2 { font-size: clamp(2rem, 4.5vw, 3.5rem); }
     details { border-bottom: 1px solid var(--line); }
     details:first-child { border-top: 1px solid var(--line); }
     summary {
-      list-style: none; cursor: pointer; padding: 1.15rem 0; font-weight: 500;
+      list-style: none; cursor: pointer; padding: 1.35rem 0;
+      font-size: clamp(1.35rem, 2.2vw, 1.75rem); line-height: 1.15; text-wrap: balance;
       display: flex; justify-content: space-between; align-items: center; gap: 1rem;
     }
     summary::-webkit-details-marker { display: none; }
     /* A chevron that turns down when open, like yaac's collapsible lists. */
     summary::after {
-      content: ""; width: 14px; height: 14px; flex: none; background: var(--text-subtle); transition: transform .15s ease;
+      content: ""; width: 16px; height: 16px; flex: none; background: var(--text-subtle); transition: transform .15s ease;
       mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
     }
     details[open] summary::after { transform: rotate(90deg); }
     summary:hover::after { background: var(--text); }
-    details p { margin: 0 0 1.25rem; color: var(--text-muted); max-width: 44rem; }
-    details code { font-size: .86em; color: var(--text); }
-    details a { color: var(--info); text-decoration: none; text-underline-offset: 2px; }
-    details a:hover { text-decoration: underline; }
+    details p { margin: 0 0 1.5rem; color: var(--text-soft); font-size: 1.125rem; line-height: 1.5; max-width: 44rem; }
+    details code { font-size: .8em; color: var(--text); }
+    details a { color: var(--text); text-decoration: underline; text-decoration-color: var(--ring); text-underline-offset: 3px; }
+    details a:hover { text-decoration-color: var(--text); }
 
     /* ---------- closing cta ---------- */
-    .final { padding: 8rem 0 7rem; text-align: center; }
-    .final img { width: 64px; height: 64px; margin-bottom: 1.5rem; }
-    .final p { color: var(--text-muted); font-size: 1.1rem; margin: 0 0 2rem; text-wrap: pretty; }
+    .final { padding: 9.5rem 0 7rem; text-align: center; }
+    .final img { width: 64px; height: 64px; margin-bottom: 1.75rem; }
+    .final p { color: var(--text-muted); font-size: 1.25rem; margin: 0 0 2.25rem; text-wrap: pretty; }
 
     /* ---------- footer ---------- */
-    footer { background: var(--bg-shell); border-top: 1px solid var(--line); padding: 3.5rem 0 4rem; font-size: .88rem; }
-    .foot { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 2rem; }
-    .foot p { color: var(--text-subtle); margin: .9rem 0 0; max-width: 18rem; }
-    .foot .license { margin-top: .6rem; font-size: .8rem; }
+    footer { padding: 0 0 4rem; font-size: 15px; }
+    .foot { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 2rem; padding-top: 2.5rem; border-top: 1px solid var(--line); }
+    .foot p { color: var(--text); font-size: 15.5px; margin: .9rem 0 0; max-width: 20rem; }
+    .foot .license { margin-top: .6rem; font-size: 14.5px; }
     .foot .license a { color: var(--text-subtle); text-decoration: none; }
     .foot .license a:hover { color: var(--text-muted); }
     .foot .theme { margin-top: 1.4rem; }
-    .foot h5 { margin: 0 0 .9rem; font-size: 13px; color: var(--text); font-weight: 600; }
-    .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
-    .foot ul a { color: var(--text-muted); text-decoration: none; }
+    .foot h5 { margin: 0 0 .75rem; font-size: 14px; color: var(--text-subtle); font-weight: 400; }
+    .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+    .foot ul a { color: var(--text-muted); text-decoration: none; transition: color .15s ease; }
     .foot ul a:hover { color: var(--text); }
 
     /* ---------- responsive ---------- */
@@ -513,17 +543,24 @@
       nav ul li:not(.keep) { display: none; }
       nav .theme { display: none; }
       .hero { padding-top: 3.5rem; }
-      .term pre { font-size: .72rem; padding: .85rem 1rem; }
+      /* The command wraps to two lines here, so the pill becomes a rounded box. */
+      .term { border-radius: 16px; }
+      .term pre { font-size: .76rem; padding: .85rem 1.1rem; }
       .term .nb { display: inline; }
       .copy { display: none; }
-      .tabs button { padding: 0 .65rem; font-size: 12px; gap: .35rem; }
+      .tabs button { height: 32px; padding: 0 .75rem; font-size: 13px; gap: .35rem; }
       .tabs button svg { display: none; }
+      .card { border-radius: 16px; }
+      .arch { border-radius: 16px; }
       .value { grid-template-columns: 1fr; gap: .6rem; padding: 1.5rem 0; }
       .clients { grid-template-columns: 1fr; }
-      th, td { padding: .75rem .6rem; font-size: .8rem; }
+      table { font-size: .9rem; }
+      th, td { padding: .8rem .6rem; }
       th:first-child, td:first-child { padding-left: .9rem; }
-      thead th { font-size: 11px; }
-      section { padding-top: 5rem; }
+      thead th { font-size: .9rem; }
+      thead th:nth-child(2) { font-size: 1rem; border-radius: 12px 12px 0 0; }
+      section { padding-top: 5.5rem; }
+      .final { padding-top: 6rem; }
     }
     @media (max-width: 1100px) {
       .bento { grid-template-columns: minmax(0, 1fr); }
@@ -538,9 +575,12 @@
     @media (max-width: 520px) {
       /* Comparison table: each row's label on its own line, the two values below. */
       table, thead, tbody { display: block; }
-      tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-bottom: 1px solid var(--line); }
-      tbody tr:last-child { border-bottom: 0; }
-      th, td { border-bottom: 0; width: auto; }
+      tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      tbody tr { border-top: 1px solid var(--line); }
+      th, td { border-top: 0; width: auto; }
+      /* The row labels would cut the band into pieces, so it goes here; the
+         Kubernetes heading stays brighter. */
+      thead th:nth-child(2), tbody td:nth-of-type(1) { background: none; }
       thead th:first-child { display: none; }
       tbody th { grid-column: 1 / -1; padding-bottom: 0; width: auto; }
       table th, table td { padding-left: 1rem; padding-right: .6rem; }
@@ -552,7 +592,7 @@
     }
     @media (max-width: 400px) {
       .wrap { padding: 0 1rem; }
-      .card { padding: 1.2rem; }
+      .card { padding: 1.25rem; }
       .config, .switcher { font-size: .78rem; }
       .secret { grid-template-columns: auto minmax(0, 1fr); }
       .secret .dots { display: none; }
@@ -724,7 +764,7 @@
     <div class="wrap">
       <div class="head">
         <div class="kicker">Features</div>
-        <h2>Orchestrate your agents, scalably and collaboratively.</h2>
+        <h2>Orchestrate your agents, <em>scalably and collaboratively.</em></h2>
         <p>Agents run sandboxed, coordinate with each other, and stay visible to your team.</p>
       </div>
       <div class="bento">
@@ -794,7 +834,7 @@
     <div class="wrap">
       <div class="head">
         <div class="kicker">How it works</div>
-        <h2>One app, any number of servers.</h2>
+        <h2>One app, any number <em>of servers.</em></h2>
         <p>Point the app at your laptop, your team's server, or a cloud cluster, and switch between them whenever you need.</p>
       </div>
       <div class="arch" role="img" aria-label="Desktop app, browser, and phone connect over Tailscale to whichever yaac server you pick, which runs each workspace as a gVisor-isolated Kubernetes pod with its own git workspace">
@@ -834,7 +874,7 @@
     <div class="wrap narrow">
       <div class="head center">
         <div class="kicker">Two ways to run</div>
-        <h2>Feeling brave? Go containerless.</h2>
+        <h2>Feeling brave? <em>Go containerless.</em></h2>
         <p>Install a cluster for full isolation, or run directly on the host like other agent managers.</p>
       </div>
       <div class="table">
@@ -858,7 +898,7 @@
     <div class="wrap">
       <div class="head">
         <div class="kicker">Why Yet Another Agent Container</div>
-        <h2>You own the software factory.</h2>
+        <h2>You own <em>the software factory.</em></h2>
         <p>Building for an open-source, self-sovereign, cooperative future.</p>
       </div>
       <div class="values">
@@ -924,7 +964,7 @@
   <section class="final">
     <div class="wrap">
       <img src="assets/logo-mark.svg" alt="">
-      <h2>Get yaac</h2>
+      <h2>Get <em>yaac</em></h2>
       <p>Free, open source, and self-hosted.</p>
       <div class="cta">
         <a class="btn primary download" href="https://github.com/bsklaroff/yaac/releases/latest">
@@ -992,7 +1032,7 @@
     // this keeps the switches, the theme-color and the saved choice in step.
     // A 'themechange' event tells anything drawn in JS (the yaks) to repaint.
     const THEME_KEY = 'yaac.theme.v1'
-    const THEME_COLOR = { light: '#FFFFFF', dark: '#202023' }
+    const THEME_COLOR = { light: '#FFFFFF', dark: '#18181B' }
     const themeButtons = [...document.querySelectorAll('.theme [role="radio"]')]
     const themeMetas = document.querySelectorAll('meta[name="theme-color"]')
     function applyTheme(pref) {
