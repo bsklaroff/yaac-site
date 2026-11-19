@@ -38,7 +38,7 @@
   const RADIUS = 15 // clipper reach, in CSS pixels
   // Opaque parts of the page: yaks never stand behind them, and they take the
   // pointer from any yak that does end up there.
-  const OPAQUE = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, footer'
+  const OPAQUE = '.frame, .card, .arch, .table, .term, .tabs, .btn, img, footer, .swarm'
   const BLOCK = `a, button, summary, input, textarea, select, nav, dialog, ${OPAQUE}`
   // A modal dialog (the screenshot viewer) covers the page: yaks pause and can't be shaved through it.
   const modalOpen = () => { try { return !!document.querySelector('dialog:modal') } catch { return !!document.querySelector('dialog[open]') } }

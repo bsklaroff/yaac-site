@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>yaac — Yet Another Agent Container</title>
-  <meta name="description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform. Open source and self-hosted.">
+  <title>Yaac — Yet Another Agent Container</title>
+  <meta name="description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our open-source infrastructure platform.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" data-scheme="light">
   <meta name="theme-color" content="#18181B" media="(prefers-color-scheme: dark)" data-scheme="dark">
-  <meta property="og:title" content="yaac — Yet Another Agent Container">
-  <meta property="og:description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform.">
+  <meta property="og:title" content="Yaac — Yet Another Agent Container">
+  <meta property="og:description" content="Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our open-source infrastructure platform.">
   <meta property="og:image" content="https://yaac.dev/assets/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -215,14 +215,28 @@
       border-bottom: 1px solid var(--line-soft);
     }
     nav .wrap { display: flex; align-items: center; height: 64px; gap: 1.75rem; }
-    .brand { display: flex; align-items: center; gap: .55rem; font-weight: 600; font-size: 1rem; text-decoration: none; text-transform: uppercase; letter-spacing: .06em; }
+    .brand { display: flex; align-items: center; gap: .6rem; text-decoration: none; }
     .brand img { width: 26px; height: 26px; }
+    /* The wordmark: YAAC in the brand's worm-style strokes, painted in the
+       text colour through the SVG as a mask, so it follows the theme. */
+    .wordmark {
+      display: block; height: 14px; aspect-ratio: 546.6 / 100; background: currentColor;
+      -webkit-mask: url(assets/wordmark.svg) center / contain no-repeat;
+      mask: url(assets/wordmark.svg) center / contain no-repeat;
+    }
     nav .gh { display: flex; margin-left: auto; color: var(--text-muted); transition: color .15s ease; }
     nav .gh:hover { color: var(--text); }
     nav .gh svg { width: 20px; height: 20px; }
 
     /* ---------- hero ---------- */
-    .hero { padding: 6.5rem 0 0; text-align: center; }
+    .hero { text-align: center; }
+    /* The ribbon swarm (swarm.js), full bleed above the headline. Its trunk
+       fades out below the waist, so the swarm recedes into the headline. */
+    .swarm {
+      display: block; width: 100%; height: clamp(190px, 25vw, 350px); margin-bottom: -1.25rem; pointer-events: none;
+      -webkit-mask-image: linear-gradient(#000 62%, transparent 96%);
+      mask-image: linear-gradient(#000 62%, transparent 96%);
+    }
     h1 {
       font-size: clamp(2.75rem, 7.5vw, 5.5rem);
       line-height: 1.06; margin: 0 0 1.75rem;
@@ -509,10 +523,6 @@
       padding: 1px; background: var(--line);
     }
     .value { display: flex; flex-direction: column; gap: 1rem; padding: 1.75rem; background: var(--bg-surface); }
-    .value::before { content: ""; width: 14px; height: 14px; margin-bottom: 1.5rem; background: var(--mark); }
-    .value:nth-child(1) { --mark: var(--brand-1); }
-    .value:nth-child(2) { --mark: var(--brand-2); }
-    .value:nth-child(3) { --mark: var(--brand-3); }
     .value h3 { font-size: clamp(1.6rem, 2.6vw, 1.875rem); line-height: 1.1; margin: 0; }
     .value p { margin: 0; color: var(--text-soft); font-size: 1.125rem; line-height: 1.5; text-wrap: pretty; }
 
@@ -575,7 +585,7 @@
     }
     @media (max-width: 640px) {
       nav .theme { display: none; }
-      .hero { padding-top: 3.5rem; }
+      .swarm { margin-bottom: -.5rem; }
       /* The command wraps to two lines here. */
       .term pre { font-size: .76rem; padding: .85rem 1.1rem; }
       .term .nb { display: inline; }
@@ -584,7 +594,6 @@
       .tabs button svg { display: none; }
       .values { grid-template-columns: minmax(0, 1fr); }
       .value { padding: 1.5rem; }
-      .value::before { margin-bottom: .75rem; }
       .agents li { height: 44px; padding: 0 1rem; font-size: 14px; }
       .clients { grid-template-columns: 1fr; }
       table { font-size: .9rem; }
@@ -691,7 +700,7 @@
 
   <nav>
     <div class="wrap">
-      <a class="brand" href="#"><img src="assets/logo-mark.svg" alt="">yaac</a>
+      <a class="brand" href="#" aria-label="yaac"><img src="assets/logo-mark.svg" alt=""><span class="wordmark"></span></a>
       <a class="gh" href="https://github.com/bsklaroff/yaac" aria-label="GitHub" title="GitHub"><svg aria-hidden="true"><use href="#i-github"/></svg></a>
       <div class="theme icons" role="radiogroup" aria-label="Theme">
         <button type="button" role="radio" data-pref="system" aria-label="System" title="System"><svg aria-hidden="true"><use href="#i-monitor"/></svg></button>
@@ -703,9 +712,10 @@
   </nav>
 
   <header class="hero">
+    <canvas class="swarm" aria-hidden="true"></canvas>
     <div class="wrap">
       <h1>You can self-host<br><em>everything</em></h1>
-      <p class="lede">Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our unified infrastructure platform.</p>
+      <p class="lede">Run sandboxed agents, automated workflows, and deployed applications on your own hardware, with our open-source infrastructure platform.</p>
       <div class="cta">
         <a class="btn primary download" href="https://github.com/bsklaroff/yaac/releases/latest">
           <svg aria-hidden="true"><use href="#i-apple"/></svg>Download for Mac
@@ -757,7 +767,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
             </button>
             <div class="panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat">
-              <img srcset="assets/show-chat-1110.webp 1110w, assets/show-chat-2220.webp 2220w" src="assets/show-chat-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-chat.webp" width="2748" height="1800" alt="yaac with workspaces in two groups, two of them running and two queued, and an OpenCode chat summarizing the light theme it added">
+              <img srcset="assets/show-chat-1110.webp 1110w, assets/show-chat-2220.webp 2220w" src="assets/show-chat-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-chat.webp" width="2748" height="1800" alt="Yaac with workspaces in two groups, two of them running and two queued, and an OpenCode chat summarizing the light theme it added">
             </div>
             <div class="panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal" hidden>
               <img data-srcset="assets/show-terminal-1110.webp 1110w, assets/show-terminal-2220.webp 2220w" data-src="assets/show-terminal-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-terminal.webp" width="2748" height="1800" alt="An OpenCode workspace in terminal mode, showing its FAQ redesign and diff">
@@ -873,7 +883,7 @@
         </div>
         <div class="link"><span>tailscale</span></div>
         <div class="node server">
-          <h4><img src="assets/logo-mark.svg" alt="">yaac server</h4>
+          <h4><img src="assets/logo-mark.svg" alt="">Yaac server</h4>
           <div class="servers"><span>laptop</span><span class="on">team</span><span>cloud</span></div>
           <div class="chips">
             <span class="chip">Projects</span>
@@ -955,7 +965,7 @@
       <div>
         <details>
           <summary>Is it open source?</summary>
-          <p>Yes. yaac is fully open source under the MIT license.</p>
+          <p>Yes. Yaac is fully open source under the MIT license.</p>
         </details>
         <details>
           <summary>Which agents does it support?</summary>
@@ -1016,7 +1026,7 @@
     <div class="wrap">
       <div class="foot">
         <div>
-          <a class="brand" href="#"><img src="assets/logo-mark.svg" alt="">yaac</a>
+          <a class="brand" href="#" aria-label="yaac"><img src="assets/logo-mark.svg" alt=""><span class="wordmark"></span></a>
           <p>Yet Another Agent Container. Open-source agent infrastructure for you and your team.</p>
           <p class="license"><a href="https://github.com/bsklaroff/yaac/blob/main/LICENSE.md">MIT License</a></p>
           <div class="theme" role="radiogroup" aria-label="Theme">
@@ -1053,6 +1063,7 @@
     </div>
   </footer>
 
+  <script src="swarm.js"></script>
   <script src="yaks.js"></script>
   <script>
     // Theme switch: System (the default) follows the OS; Light and Dark force
