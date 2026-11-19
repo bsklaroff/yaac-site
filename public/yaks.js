@@ -61,6 +61,8 @@
     },
   ]
   // White patches on piebald yaks. The skin under them is pink.
+  // Each coat's name, for the page's per-theme filter on its canvases.
+  const COATS = ['black', 'golden', 'grey']
   const PIED = { under: ['#b9afa2', '#c6bdb0'], over: ['#ddd5c9', '#e6dfd4', '#d2c9bc'], hi: ['#f2ece3'], skin: '#c49a92', face: '#ddd5c9' }
 
   // Each yak, tuft and pile of clippings gets its own small canvas, placed in
@@ -122,7 +124,7 @@
       if (Math.random() < .5) patches.push({ bone: 2, x: -3, y: 34, r: 22 })
     }
     const yak = {
-      x, y, pal, patches, blaze: pied, styles: [],
+      x, y, pal, coat: COATS[PALETTES.indexOf(pal)], patches, blaze: pied, styles: [],
       tail: [], under: [], over: [], fluff: [], head: [], all: [],
       face: 1, faceTo: 1, state: 'idle', timer: rand(0, 2), target: null, tuft: null,
       scale: 1, sx: 1, speed: rand(40, 55), walk: 0, phase: 0, ha: .15,
@@ -315,8 +317,11 @@
   const toPage = (yak, x, y) => [yak.x + x * yak.scale * yak.sx, yak.y + y * yak.scale]
   const inView = (y, above, below) => y + below > scrollY && y - above < scrollY + H
 
-  function makeSprite() {
+  // A yak's sprites carry its coat, which the page's CSS lightens or darkens
+  // to suit the theme (index.html, "yaks").
+  function makeSprite(coat) {
     const cv = document.createElement('canvas')
+    if (coat) cv.dataset.coat = coat
     stage.append(cv)
     return { cv, c: cv.getContext('2d'), left: 0, top: 0, w: 0, h: 0, dpr: 0, z: null }
   }
@@ -661,19 +666,36 @@
     ctx.fill()
   }
 
-  function drawBubble(x, y, text) {
-    ctx.font = '600 12px Inter, ui-sans-serif, system-ui, sans-serif'
-    const w = ctx.measureText(text).width + 16
+  // The speech bubble follows the page's theme. The page's tokens hold
+  // light-dark() values, which a canvas can't parse, so these mirror
+  // --bg-raised, --line-strong and --text for each theme.
+  const BUBBLE = {
+    light: { fill: 'rgb(255 255 255 / .96)', stroke: 'rgb(0 0 0 / .14)', text: '#171717' },
+    dark: { fill: 'rgb(41 41 45 / .96)', stroke: 'rgb(255 255 255 / .14)', text: '#F2F2F1' },
+  }
+  const darkScheme = matchMedia('(prefers-color-scheme: dark)')
+  function pageTheme() {
+    const pref = document.documentElement.dataset.theme
+    return pref === 'light' || pref === 'dark' ? pref : darkScheme.matches ? 'dark' : 'light'
+  }
+
+  const BUBBLE_FONT = '600 12px "Geist Variable", ui-sans-serif, system-ui, sans-serif'
+  function drawBubble(sp, x, y, text, z) {
+    const colors = BUBBLE[pageTheme()]
+    sp.c.font = BUBBLE_FONT
+    const w = sp.c.measureText(text).width + 16
     const h = 22
-    ctx.fillStyle = 'rgb(27 27 33 / .94)'
-    ctx.strokeStyle = 'rgb(255 255 255 / .14)'
+    begin(sp, x - w / 2 - 2, y - h - 2, x + w / 2 + 2, y + 8, z)
+    ctx.font = BUBBLE_FONT
+    ctx.fillStyle = colors.fill
+    ctx.strokeStyle = colors.stroke
     ctx.lineWidth = 1
     ctx.beginPath()
-    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h, w, h, 8)
+    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h, w, h, 4)
     else ctx.rect(x - w / 2, y - h, w, h)
     ctx.fill(); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(x - 5, y - .5); ctx.lineTo(x, y + 6); ctx.lineTo(x + 5, y - .5); ctx.fill()
-    ctx.fillStyle = '#ececef'
+    ctx.fillStyle = colors.text
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(text, x, y - h / 2 + .5)
@@ -707,8 +729,7 @@
     ctx.globalAlpha = 1
   }
 
-  // The canvas a yak (plus its hearts and speech bubble) is drawn in, around
-  // where it stands.
+  // The canvas a yak (plus its hearts) is drawn in, around where it stands.
   const yakBox = (yak, x, y) => {
     const s = yak.scale
     return [x - 210 * s - 50, y - 250 * s - 36, x + 210 * s + 50, y + 26 * s]
@@ -731,20 +752,25 @@
     for (const yak of yaks) {
       if (!yak.visible) {
         if (yak.sprite) yak.sprite.cv.hidden = true
+        if (yak.bubble) yak.bubble.cv.hidden = true
         yak.look = null
         continue
       }
       const look = lookOf(yak, t)
       if (look && look === yak.look) continue
       yak.look = look
-      yak.sprite ??= makeSprite()
+      yak.sprite ??= makeSprite(yak.coat)
       const [l, tp, r, b] = yakBox(yak, yak.x, yak.y)
       begin(yak.sprite, l, tp, r, b, yak.y)
       drawYak(yak, t)
       drawEffects(yak.fx)
+      // The bubble has its own sprite, so the coat's filter leaves it alone.
       if (yak.say && t < yak.say.until) {
         const h = yak.bones[1]
-        drawBubble(...toPage(yak, h.x + 24, h.y - 52), yak.say.text)
+        yak.bubble ??= makeSprite()
+        drawBubble(yak.bubble, ...toPage(yak, h.x + 24, h.y - 52), yak.say.text, yak.y + 1)
+      } else if (yak.bubble) {
+        yak.bubble.cv.hidden = true
       }
     }
     // Grass and fallen hair are only redrawn while they change.
@@ -1165,7 +1191,7 @@
     // bring the whole pile back to full strength.
     if (!lt || Math.hypot(lt.x - yak.x, lt.y - yak.y) > 30 || lt.items.length >= 300 || lt.age > PILE_LIFE - 3) {
       const [l, t, r, b] = yakBox(yak, yak.x, yak.y)
-      lt = yak.litter = { x: yak.x, y: yak.y, box: [l - 20, t, r + 20, b + 40], items: [], age: 0, dirty: true, sprite: makeSprite() }
+      lt = yak.litter = { x: yak.x, y: yak.y, box: [l - 20, t, r + 20, b + 40], items: [], age: 0, dirty: true, sprite: makeSprite(yak.coat) }
       litters.push(lt)
     }
     lt.items.push({
@@ -1520,6 +1546,11 @@
     requestAnimationFrame(frame)
   }
   for (const type of ['scroll', 'resize', 'pointermove']) addEventListener(type, wake, { passive: true })
+  // A theme change repaints any yak with a speech bubble up.
+  addEventListener('themechange', () => {
+    for (const yak of yaks) if (yak.say) yak.look = null
+    wake()
+  })
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || !paused || dead) return
     paused = false
