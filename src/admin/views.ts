@@ -16,33 +16,44 @@ type Report = NonNullable<Awaited<ReturnType<typeof getFeedback>>>
 type Summary = Awaited<ReturnType<typeof listFeedback>>['reports'][number]
 
 const STYLE = `
-  :root { color-scheme: dark; --bg: #08080a; --surface: #131317; --border: #2c2c34;
-    --text: #ececef; --text-dim: #9a9aa4; --accent: #d4875f;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  :root { color-scheme: light dark;
+    --bg: light-dark(#FFFFFF, #202023); --sunken: light-dark(#F6F6F5, #1B1B1E);
+    --line: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
+    --text: light-dark(#171717, #F2F2F1); --text-muted: light-dark(#5C5C5B, #B4B4B1);
+    --text-subtle: light-dark(#6A6A69, #97979A); --accent: light-dark(#4353D9, #97A6FF);
+    --info: light-dark(#2563EB, #82B8FF); --danger: light-dark(#C4302B, #FF8178);
+    --edge-inset: inset 0 0 0 1px light-dark(rgb(0 0 0 / 0.09), rgb(255 255 255 / 0.08));
+    --edge-control: 0 0 0 1px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.60)),
+      inset 0 1px 0 light-dark(transparent, rgb(255 255 255 / 0.10)), 0 2px 4px -2px rgb(0 0 0 / 0.12);
+    --fill-control: light-dark(#FFFFFF, #27272B); --fill-control-hover: light-dark(#FAFAFA, #2F2F33);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   body { margin: 0 auto; max-width: 72rem; padding: 1.5rem; background: var(--bg); color: var(--text);
-    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  a { color: var(--accent); }
-  h1 { font-size: 1.25rem; }
-  h2 { font-size: 1rem; margin-top: 2rem; }
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  a { color: var(--info); text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  h1 { font-size: 1.25rem; font-weight: 600; }
+  h2 { font-size: 1rem; font-weight: 600; margin-top: 2rem; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; vertical-align: top; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-dim); font-weight: 500; white-space: nowrap; }
+  th, td { text-align: left; vertical-align: top; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--text-subtle); font-weight: 500; white-space: nowrap; }
   .mono { font-family: var(--mono); font-size: 12px; }
-  .dim { color: var(--text-dim); }
+  .dim { color: var(--text-muted); }
   .nowrap { white-space: nowrap; }
-  .blocked { color: #f85149; font-weight: 600; }
-  .archived { color: var(--text-dim); }
+  .blocked { color: var(--danger); font-weight: 600; }
+  .archived { color: var(--text-subtle); }
   tr.archived td { opacity: 0.6; }
-  .tag { border: 1px solid var(--border); border-radius: 4px; padding: 0 0.3rem; font-size: 12px; }
-  button, .button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
-    border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer; text-decoration: none; display: inline-block; }
-  button:hover, .button:hover { border-color: var(--accent); }
+  .tag { box-shadow: var(--edge-inset); border-radius: 4px; padding: 0 0.3rem; font-size: 12px; }
+  button, .button { font-family: inherit; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--text); background: var(--fill-control);
+    border: 0; box-shadow: var(--edge-control); border-radius: 4px; padding: 0.25rem 0.7rem; cursor: pointer;
+    text-decoration: none; display: inline-block; }
+  button:hover, .button:hover { background: var(--fill-control-hover); }
   .toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
   .toolbar .spacer { flex: 1; }
-  input[type=checkbox] { margin: 0.2rem 0 0; }
-  .message { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
-  .images img { max-width: 100%; max-height: 40rem; border: 1px solid var(--border); margin-bottom: 1rem; }
+  input[type=checkbox] { margin: 0.2rem 0 0; accent-color: var(--accent); }
+  .message { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunken);
+    box-shadow: var(--edge-inset); border-radius: 4px; padding: 1rem; }
+  .images img { max-width: 100%; max-height: 40rem; box-shadow: 0 0 0 1px var(--line); margin-bottom: 1rem; }
   nav { margin-top: 1rem; display: flex; gap: 1rem; }
 `
 
