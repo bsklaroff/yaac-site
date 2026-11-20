@@ -4,12 +4,15 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { feedbackRoutes } from '#api/routes/feedback'
 import { errorResponse } from '#errors'
 import { DEFAULT_LIMITS, type FeedbackLimits } from '#feedback/limits'
+import { demoVideoInfo, demoVideoPath } from '#media/demo-video'
 import { PUBLIC_DIR } from '#paths'
 
 export interface AppDeps {
   /** Log each request (the server, not tests). */
   logRequests?: boolean
   limits?: FeedbackLimits
+  /** Where the uploaded demo video lives, if a media dir is configured. */
+  mediaDir?: string
 }
 
 /**
@@ -29,8 +32,37 @@ export function buildApp(deps: AppDeps = {}) {
 
   app.route('/api', apiRoutes(deps.limits ?? DEFAULT_LIMITS))
   app.use('*', staticCaching)
+  // The uploaded demo video lives in the media dir (the site's volume), not
+  // under public/, so it needs a route of its own. Registered after
+  // staticCaching so it gets the ETag/304 and the 10-minute cache, and
+  // before the public files so a missing video falls through to their 404.
+  // serveStatic streams it as video/mp4 with Range support, so a browser
+  // can seek.
+  if (deps.mediaDir) {
+    app.get('/demo-video', honorIfRange(deps.mediaDir), serveStatic({ path: demoVideoPath(deps.mediaDir) }))
+  }
   app.use('*', serveStatic({ root: PUBLIC_DIR }))
   return app
+}
+
+/**
+ * `serveStatic` ignores `If-Range`, so a client resuming a partial copy with
+ * a stale validator would be handed a 206 of a file that was replaced under
+ * it, splicing new bytes onto old. When `If-Range` names anything but the
+ * file's current `Last-Modified`, drop the `Range` so the whole file is sent
+ * instead. Our ETags are weak, so an entity-tag `If-Range` can never match
+ * (RFC 9110 §13.1.5).
+ */
+function honorIfRange(mediaDir: string): MiddlewareHandler {
+  return async (c, next) => {
+    // eslint-disable-next-line no-restricted-syntax -- a cache validator, not API input
+    const ifRange = c.req.header('If-Range')
+    if (ifRange) {
+      const info = await demoVideoInfo(mediaDir)
+      if (info && ifRange !== info.modified.toUTCString()) c.req.raw.headers.delete('range')
+    }
+    await next()
+  }
 }
 
 /** The page and its scripts, by Content-Type: revalidated on every load. */

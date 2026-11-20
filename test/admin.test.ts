@@ -1,5 +1,8 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import net, { type AddressInfo } from 'node:net'
+import os from 'node:os'
+import path from 'node:path'
 import { serve } from '@hono/node-server'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildAdminApp } from '#admin/app'
@@ -7,6 +10,7 @@ import { SCRIPT } from '#admin/views'
 import { buildApp } from '#app'
 import { createApiClient } from '#client'
 import { blockKey, closeDb, getFeedback, openDb, setFeedbackArchived } from '#db'
+import { saveDemoVideo, sweepStaleParts } from '#media/demo-video'
 
 const PNG = Buffer.from('\x89PNG\r\n\x1a\nrest-of-image', 'latin1')
 
@@ -223,5 +227,159 @@ describe('the admin', () => {
 
   it('is not served on the public port', async () => {
     expect((await buildApp().request(`http://yaac.test/feedback/${id}`)).status).toBe(404)
+  })
+
+  describe('the demo video', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaac-admin-video-'))
+    afterAll(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+    /** An MP4 as far as the first bytes go: `ftyp` at offset 4. */
+    const mp4 = (payload: Buffer = Buffer.from('rest of the file')) =>
+      Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom'), payload])
+
+    const upload = (body: Buffer, headers: Record<string, string> = {}) =>
+      buildAdminApp({ mediaDir: dir }).request('http://localhost:7777/demo-video', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': String(body.length),
+          'Sec-Fetch-Site': 'same-origin',
+          ...headers,
+        },
+        body: new Uint8Array(body),
+      })
+
+    it('uploads an MP4 the public site then serves', async () => {
+      const file = mp4()
+      const res = await upload(file)
+      expect(res.status).toBe(201)
+      expect(await res.json()).toEqual({ size: file.length })
+
+      const served = await buildApp({ mediaDir: dir }).request('/demo-video')
+      expect(served.status).toBe(200)
+      expect(served.headers.get('Content-Type')).toBe('video/mp4')
+      expect(Buffer.from(await served.arrayBuffer()).equals(file)).toBe(true)
+    })
+
+    it('refuses a file that is not an MP4, leaving no part file', async () => {
+      const res = await upload(Buffer.from('this is not an mp4 at all'))
+      expect(res.status).toBe(400)
+      expect(fs.readdirSync(dir).some((name) => name.endsWith('.part'))).toBe(false)
+    })
+
+    it('refuses a declared length over the cap before reading the body', async () => {
+      const res = await upload(Buffer.from('x'), { 'Content-Length': String(2 * 1024 ** 3 + 1) })
+      expect(res.status).toBe(413)
+    })
+
+    it('refuses a PUT from another site', async () => {
+      const res = await upload(mp4(), { 'Sec-Fetch-Site': 'cross-site' })
+      expect(res.status).toBe(403)
+    })
+
+    it('refuses a PUT by Origin alone, and a same-site one', async () => {
+      const byOrigin = await upload(mp4(), { 'Sec-Fetch-Site': '', Origin: 'http://evil.example' })
+      expect(byOrigin.status).toBe(403)
+      const sameSite = await upload(mp4(), { 'Sec-Fetch-Site': 'same-site', Origin: 'http://8000.ws.localhost' })
+      expect(sameSite.status).toBe(403)
+    })
+
+    it('shows the current size on its page', async () => {
+      const file = mp4(Buffer.alloc(1024 * 1024))
+      expect((await upload(file)).status).toBe(201)
+      const page = await (await buildAdminApp({ mediaDir: dir }).request('http://localhost:7777/demo-video')).text()
+      expect(page).toContain('id="upload"')
+      expect(page).toContain('accept="video/mp4"')
+      expect(page).toContain('1.0 MiB')
+    })
+
+    it('says so when no media dir is configured', async () => {
+      const page = await (await buildAdminApp().request('http://localhost:7777/demo-video')).text()
+      expect(page).toContain('No media dir is configured')
+      const res = await buildAdminApp().request('http://localhost:7777/demo-video', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'video/mp4', 'Content-Length': '1', 'Sec-Fetch-Site': 'same-origin' },
+        body: new Uint8Array([0x78]),
+      })
+      expect(res.status).toBe(403)
+    })
+
+    it('sweeps stale part files, keeping the video', async () => {
+      const sweepDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaac-sweep-'))
+      try {
+        fs.writeFileSync(path.join(sweepDir, '.demo-video.mp4.abandoned.part'), 'junk')
+        fs.writeFileSync(path.join(sweepDir, 'demo-video.mp4'), 'video')
+        await sweepStaleParts(sweepDir)
+        expect(fs.readdirSync(sweepDir)).toEqual(['demo-video.mp4'])
+      } finally {
+        fs.rmSync(sweepDir, { recursive: true, force: true })
+      }
+    })
+
+    it('cleans up and says the volume is full when the write fails with ENOSPC', async () => {
+      const fullDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaac-full-'))
+      try {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(mp4(Buffer.alloc(64)))
+            const err = new Error('no space left on device') as NodeJS.ErrnoException
+            err.code = 'ENOSPC'
+            controller.error(err)
+          },
+        })
+        await expect(saveDemoVideo(fullDir, body)).rejects.toMatchObject({ code: 'INSUFFICIENT_STORAGE' })
+        expect(fs.readdirSync(fullDir).some((name) => name.endsWith('.part'))).toBe(false)
+      } finally {
+        fs.rmSync(fullDir, { recursive: true, force: true })
+      }
+    })
+
+    it('leaves no part file when the body errors mid-stream', async () => {
+      const errDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaac-err-'))
+      try {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(mp4(Buffer.alloc(64)))
+            controller.error(new Error('aborted'))
+          },
+        })
+        await expect(saveDemoVideo(errDir, body)).rejects.toThrow('aborted')
+        expect(fs.readdirSync(errDir).some((name) => name.endsWith('.part'))).toBe(false)
+      } finally {
+        fs.rmSync(errDir, { recursive: true, force: true })
+      }
+    })
+
+    it('leaves no part file when the client aborts mid-upload', async () => {
+      const abortDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yaac-abort-'))
+      const server = serve({ fetch: buildAdminApp({ mediaDir: abortDir }).fetch, port: 0, hostname: '127.0.0.1' })
+      await new Promise((resolve) => server.once('listening', resolve))
+      const port = (server.address() as AddressInfo).port
+      const hasPart = () => fs.readdirSync(abortDir).some((name) => name.endsWith('.part'))
+      try {
+        const socket = net.connect(port, '127.0.0.1')
+        await new Promise((resolve) => socket.on('connect', resolve))
+        socket.write(`PUT /demo-video HTTP/1.1\r\nHost: localhost:${port}\r\nSec-Fetch-Site: same-origin\r\nContent-Type: video/mp4\r\nContent-Length: 10000000\r\n\r\n`)
+        socket.write(mp4(Buffer.alloc(200_000)))
+        for (let i = 0; i < 80 && !hasPart(); i++) await new Promise((resolve) => setTimeout(resolve, 25))
+        expect(hasPart()).toBe(true)
+        socket.destroy()
+        for (let i = 0; i < 120 && hasPart(); i++) await new Promise((resolve) => setTimeout(resolve, 25))
+        expect(hasPart()).toBe(false)
+      } finally {
+        server.close()
+        fs.rmSync(abortDir, { recursive: true, force: true })
+      }
+    })
+
+    it('handles concurrent uploads without leaving a part file', async () => {
+      const [a, b] = await Promise.all([
+        upload(mp4(Buffer.alloc(300_000, 1))),
+        upload(mp4(Buffer.alloc(300_000, 2))),
+      ])
+      expect(a.status).toBe(201)
+      expect(b.status).toBe(201)
+      expect(fs.readdirSync(dir).some((name) => name.endsWith('.part'))).toBe(false)
+    })
   })
 })

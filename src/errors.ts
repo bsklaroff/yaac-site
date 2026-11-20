@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'FORBIDDEN'
   | 'CONFLICT'
   | 'TOO_LARGE'
+  | 'INSUFFICIENT_STORAGE'
   | 'RATE_LIMITED'
   | 'INTERNAL'
 
@@ -46,6 +47,8 @@ function defaultStatus(code: ErrorCode): ContentfulStatusCode {
     case 'CONFLICT': return 409
     // Refused rather than silently truncated.
     case 'TOO_LARGE': return 413
+    // The disk the upload lands on is full.
+    case 'INSUFFICIENT_STORAGE': return 507
     case 'RATE_LIMITED': return 429
     case 'INTERNAL': return 500
   }
