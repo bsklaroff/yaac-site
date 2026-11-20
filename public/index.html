@@ -302,7 +302,7 @@
     }
     .panel { grid-area: 1 / 1; transition: opacity .35s ease, visibility .35s; }
     .panel[hidden] { display: block; opacity: 0; visibility: hidden; pointer-events: none; }
-    .panel > img { width: 100%; height: auto; display: block; }
+    .panel img { width: 100%; height: auto; display: block; }
     .zoom {
       position: absolute; top: .75rem; right: .75rem; z-index: 2;
       width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
@@ -747,36 +747,48 @@
 
       <div class="showcase" id="tour">
         <div class="tabs" role="tablist" aria-label="Product tour">
-          <button role="tab" aria-selected="true" aria-controls="panel-chat" id="tab-chat" data-caption="Pick a coding agent per workspace with a chat or terminal UI.">
+          <button role="tab" aria-selected="true" aria-controls="panel-chat" id="tab-chat" data-caption="Run parallel agents in automatically sandboxed, git-backed workspaces">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Chat
           </button>
-          <button role="tab" aria-selected="false" aria-controls="panel-terminal" id="tab-terminal" tabindex="-1" data-caption="Pick a coding agent per workspace with a chat or terminal UI.">
+          <button role="tab" aria-selected="false" aria-controls="panel-terminal" id="tab-terminal" tabindex="-1" data-caption="Run any agent with its terminal UI if you prefer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>Terminal
           </button>
-          <button role="tab" aria-selected="false" aria-controls="panel-review" id="tab-review" tabindex="-1" data-caption="Review each workspace's changes against its base git branch.">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14"/><path d="M5 10h14"/><path d="M5 21h14"/></svg>Review
+          <button role="tab" aria-selected="false" aria-controls="panel-workflow" id="tab-workflow" tabindex="-1" data-caption="Define custom workflows for CI/CD, or let your agents do it">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>Workflows
           </button>
-          <button role="tab" aria-selected="false" aria-controls="panel-preview" id="tab-preview" tabindex="-1" data-caption="Preview each workspace's dev server, isolated from your other workspaces.">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>Preview
+          <button role="tab" aria-selected="false" aria-controls="panel-site" id="tab-site" tabindex="-1" data-caption="Deploy your apps publicly from git repos, with custom Docker images">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>Sites
           </button>
         </div>
-        <p class="caption" aria-live="polite">Pick a coding agent per workspace with a chat or terminal UI.</p>
+        <p class="caption" aria-live="polite">Run parallel agents in automatically sandboxed, git-backed workspaces</p>
         <div class="stage">
           <div class="frame">
             <button class="zoom" type="button" aria-label="View screenshot full size">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
             </button>
             <div class="panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat">
-              <img srcset="assets/show-chat-1110.webp 1110w, assets/show-chat-2220.webp 2220w" src="assets/show-chat-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-chat.webp" width="2748" height="1800" alt="Yaac with workspaces in two groups, two of them running and two queued, and an OpenCode chat summarizing the light theme it added">
+              <picture>
+                <source media="(prefers-color-scheme: light)" srcset="assets/show-chat-light-1110.webp 1110w, assets/show-chat-light-2220.webp 2220w" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px">
+                <img srcset="assets/show-chat-dark-1110.webp 1110w, assets/show-chat-dark-2220.webp 2220w" src="assets/show-chat-dark-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full-light="assets/show-chat-light.webp" data-full-dark="assets/show-chat-dark.webp" width="2748" height="1800" alt="Yaac with a dozen agent workspaces in its sidebar, and a Codex chat beside the Changes pane, showing its pagination diff to the feedback admin">
+              </picture>
             </div>
             <div class="panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal" hidden>
-              <img data-srcset="assets/show-terminal-1110.webp 1110w, assets/show-terminal-2220.webp 2220w" data-src="assets/show-terminal-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-terminal.webp" width="2748" height="1800" alt="An OpenCode workspace in terminal mode, showing its FAQ redesign and diff">
+              <picture>
+                <source media="(prefers-color-scheme: light)" data-srcset="assets/show-terminal-light-1110.webp 1110w, assets/show-terminal-light-2220.webp 2220w" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px">
+                <img data-srcset="assets/show-terminal-dark-1110.webp 1110w, assets/show-terminal-dark-2220.webp 2220w" data-src="assets/show-terminal-dark-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full-light="assets/show-terminal-light.webp" data-full-dark="assets/show-terminal-dark.webp" width="2748" height="1800" alt="Claude Code's terminal UI summarizing a new How it works section, beside a Preview pane showing the landing page from the workspace's dev server">
+              </picture>
             </div>
-            <div class="panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
-              <img data-srcset="assets/show-review-1110.webp 1110w, assets/show-review-2220.webp 2220w" data-src="assets/show-review-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-review.webp" width="2748" height="1800" alt="The chat beside the Changes pane, showing the light theme's diff to index.html">
+            <div class="panel" role="tabpanel" id="panel-workflow" aria-labelledby="tab-workflow" hidden>
+              <picture>
+                <source media="(prefers-color-scheme: light)" data-srcset="assets/show-workflow-light-1110.webp 1110w, assets/show-workflow-light-2220.webp 2220w" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px">
+                <img data-srcset="assets/show-workflow-dark-1110.webp 1110w, assets/show-workflow-dark-2220.webp 2220w" data-src="assets/show-workflow-dark-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full-light="assets/show-workflow-light.webp" data-full-dark="assets/show-workflow-dark.webp" width="2748" height="1800" alt="The ci workflow's steps and run secrets across the pane, with its runs under it in the sidebar, six succeeded and two failed">
+              </picture>
             </div>
-            <div class="panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview" hidden>
-              <img data-srcset="assets/show-preview-1110.webp 1110w, assets/show-preview-2220.webp 2220w" data-src="assets/show-preview-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full="assets/show-preview.webp" width="2748" height="1800" alt="The chat beside a Preview pane showing the landing page in its new light theme">
+            <div class="panel" role="tabpanel" id="panel-site" aria-labelledby="tab-site" hidden>
+              <picture>
+                <source media="(prefers-color-scheme: light)" data-srcset="assets/show-site-light-1110.webp 1110w, assets/show-site-light-2220.webp 2220w" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px">
+                <img data-srcset="assets/show-site-dark-1110.webp 1110w, assets/show-site-dark-2220.webp 2220w" data-src="assets/show-site-dark-1110.webp" sizes="(max-width: 400px) calc(100vw - 2rem), (max-width: 1160px) calc(100vw - 3rem), 1110px" data-full-light="assets/show-site-light.webp" data-full-dark="assets/show-site-dark.webp" width="2748" height="1800" alt="The yaac-site site, unpublished and live at its newest commit, with its releases, and a staging site mid-deploy">
+              </picture>
             </div>
           </div>
         <dialog class="lightbox" aria-label="Screenshot viewer">
@@ -1137,11 +1149,30 @@
     function load(tab) {
       const img = panelImg(tab)
       if (!img.dataset.src) return
-      img.srcset = img.dataset.srcset
+      for (const el of img.parentElement.querySelectorAll('[data-srcset]')) {
+        el.srcset = el.dataset.srcset
+        delete el.dataset.srcset
+      }
       img.src = img.dataset.src
-      delete img.dataset.srcset
       delete img.dataset.src
     }
+
+    // Each screenshot comes in a light and a dark take. Its <picture> picks
+    // by the system scheme on its own; a theme chosen on the page overrides
+    // that by switching the light source on or off.
+    const shotTheme = () => {
+      const pref = document.documentElement.dataset.theme
+      if (pref === 'light' || pref === 'dark') return pref
+      return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    function syncShots() {
+      const pref = document.documentElement.dataset.theme
+      document.querySelectorAll('.panel source').forEach((s) => {
+        s.media = pref === 'light' ? 'all' : pref === 'dark' ? 'not all' : '(prefers-color-scheme: light)'
+      })
+    }
+    syncShots()
+    addEventListener('themechange', syncShots)
     function select(tab) {
       load(tab)
       tabs.forEach((t) => {
@@ -1220,7 +1251,7 @@
       lbText.textContent = tab.dataset.caption
       lbLive.textContent = `${tab.textContent.trim()} screenshot. ${tab.dataset.caption}`
       refreshZoomable()
-      const full = await decoded(img.dataset.full).catch(() => null)
+      const full = await decoded(img.dataset[shotTheme() === 'light' ? 'fullLight' : 'fullDark']).catch(() => null)
       if (t !== token || !full) return
       lbImg.src = full
       fullReady = true
@@ -1264,6 +1295,7 @@
     // Esc steps out of the zoom before it closes the viewer.
     box.addEventListener('cancel', (e) => { if (zoomed()) { e.preventDefault(); unzoom() } })
     addEventListener('resize', () => { if (box.open && !zoomed()) refreshZoomable() })
+    addEventListener('themechange', () => { if (box.open) show(current()) })
 
     // Full screen covers the page, with the modal dialog still on top. (A
     // dialog can't itself be made full screen.)
