@@ -1,18 +1,20 @@
 import crypto from 'node:crypto'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { z } from 'zod'
 import { zv } from '#api/validator'
 import { getFeedback, getFeedbackImage, listFeedback, setFeedbackArchived } from '#db'
 import { errorResponse, ServerError } from '#errors'
-import { feedbackDetailPage, feedbackListPage, listUrl, SCRIPT } from './views'
+import { DEMO_VIDEO_LIMIT, demoVideoInfo, saveDemoVideo } from '#media/demo-video'
+import { demoVideoPage, feedbackDetailPage, feedbackListPage, listUrl, SCRIPT } from './views'
 
 const PAGE_SIZE = 50
 
-/** The pages' own CSP: no script but the list's select-all box, images
- *  and forms only from here. */
-const PAGE_CSP = `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'sha256-${crypto.createHash('sha256').update(SCRIPT).digest('base64')}'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`
+/** The pages' own CSP: no script but the list's select-all box and the
+ *  upload form, images and forms only from here, and the upload's XHR back
+ *  to here. */
+const PAGE_CSP = `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'sha256-${crypto.createHash('sha256').update(SCRIPT).digest('base64')}'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`
 
 /** A report's images only had their magic bytes checked, so one may be a
  *  polyglot: fixed type, no sniffing, downloaded rather than opened, and
@@ -75,6 +77,13 @@ const noStore = createMiddleware(async (c, next) => {
 
 const reportId = z.object({ id: z.uuid() })
 
+/** A `PUT /demo-video`'s declared size. zv checks it is a number, and the
+ *  handler refuses one over the cap as TOO_LARGE (413) before reading any
+ *  of the body. */
+const uploadHeaders = z.object({
+  'content-length': z.coerce.number().int().nonnegative(),
+})
+
 /** Which of the list's pages: `archived` shows the archived reports too. */
 const listView = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -85,9 +94,20 @@ function notFound(): never {
   throw new ServerError('NOT_FOUND', 'no such report')
 }
 
+/** Whether `err` is the client going away mid-upload, not a server fault. */
+function isClientAbort(c: Context, err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | null)?.code
+  return c.req.raw.signal.aborted
+    || code === 'ECONNRESET'
+    || code === 'ERR_STREAM_PREMATURE_CLOSE'
+    || (err instanceof Error && err.message === 'aborted')
+}
+
 export interface AdminAppDeps {
   /** Log each request (the server, not tests). */
   logRequests?: boolean
+  /** Where the uploaded demo video lives, if a media dir is configured. */
+  mediaDir?: string
 }
 
 /**
@@ -151,6 +171,39 @@ export function buildAdminApp(deps: AdminAppDeps = {}) {
           'Content-Disposition': `attachment; filename="feedback-${id}-${position.toString()}.${extension}"`,
           'Content-Security-Policy': IMAGE_CSP,
         })
+      },
+    )
+    // The custom demo video the public site serves at /demo-video: a page
+    // showing the current file and a form to replace it. It sits behind
+    // loopbackOnly, sameOriginPosts (which covers PUT) and noStore above.
+    .get('/demo-video', async (c) => {
+      const info = deps.mediaDir ? await demoVideoInfo(deps.mediaDir) : null
+      return c.html(demoVideoPage({ mediaDir: deps.mediaDir, info }))
+    })
+    .put(
+      '/demo-video',
+      zv('header', uploadHeaders),
+      async (c) => {
+        const { mediaDir } = deps
+        if (!mediaDir) throw new ServerError('FORBIDDEN', 'no media dir is configured, so there is nowhere to save the video')
+        if (c.req.valid('header')['content-length'] > DEMO_VIDEO_LIMIT) {
+          throw new ServerError('TOO_LARGE', `the video is over the ${(DEMO_VIDEO_LIMIT / 1024 ** 3).toString()} GiB limit`)
+        }
+        // The body is the video itself, streamed to disk by saveDemoVideo.
+        // Reading it raw (not through zv) is what keeps gigabytes out of
+        // memory; nothing above parses it.
+        try {
+          const size = await saveDemoVideo(mediaDir, c.req.raw.body)
+          return c.json({ size }, 201)
+        } catch (err) {
+          // A closed tab or a dropped tunnel is routine here, not a server
+          // fault: say so once rather than logging a 500 with a stack trace.
+          if (isClientAbort(c, err)) {
+            console.warn('admin: the demo video upload was aborted by the client')
+            return c.body(null, 400)
+          }
+          throw err
+        }
       },
     )
 }

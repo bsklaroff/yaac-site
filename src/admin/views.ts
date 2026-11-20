@@ -54,6 +54,8 @@ const STYLE = `
   .message { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunken);
     box-shadow: var(--edge-inset); border-radius: 4px; padding: 1rem; }
   .images img { max-width: 100%; max-height: 40rem; box-shadow: 0 0 0 1px var(--line); margin-bottom: 1rem; }
+  .status { color: var(--danger); }
+  progress { width: 12rem; vertical-align: middle; }
   nav { margin-top: 1rem; display: flex; gap: 1rem; }
 `
 
@@ -76,6 +78,54 @@ export const SCRIPT = `
     // Back and forward restore the boxes' state after this first runs.
     addEventListener('pageshow', sync)
     all.hidden = false
+  }
+
+  // The demo video's upload form. XHR rather than fetch, for its progress
+  // events, and it PUTs the File itself, so the body is the video, not a
+  // multipart envelope the server would have to unpack.
+  const form = document.getElementById('upload')
+  if (form) {
+    const input = form.video
+    const progress = form.querySelector('progress')
+    const status = form.querySelector('.status')
+    const button = form.querySelector('button')
+    const busy = (on) => {
+      input.disabled = on
+      button.disabled = on
+      progress.hidden = !on
+    }
+    form.addEventListener('submit', (event) => {
+      event.preventDefault()
+      const file = input.files[0]
+      if (!file) return
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', '/demo-video')
+      xhr.setRequestHeader('Content-Type', 'video/mp4')
+      busy(true)
+      progress.value = 0
+      status.textContent = ''
+      xhr.upload.onprogress = (sent) => {
+        if (sent.lengthComputable) progress.value = sent.loaded / sent.total
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          location.reload()
+          return
+        }
+        busy(false)
+        let message = 'Upload failed (' + xhr.status + ')'
+        try {
+          const body = JSON.parse(xhr.responseText)
+          if (body && body.error && body.error.message) message = body.error.message
+        } catch (ignored) {}
+        status.textContent = message
+      }
+      xhr.onerror = () => {
+        busy(false)
+        status.textContent = 'Upload failed: the connection dropped'
+      }
+      xhr.send(file)
+    })
   }
 `
 
@@ -155,6 +205,7 @@ ${reports.length > 0 && at.archived ? html`<button name="archive" value="0">Unar
 ${at.archived
     ? html`<a class="button" href="${listUrl({ page: 1, archived: false })}">Hide archived</a>`
     : html`<a class="button" href="${listUrl({ page: 1, archived: true })}">Show archived</a>`}
+<a class="button" href="/demo-video">Demo video</a>
 </form>
 ${reports.length === 0
     ? html`<p class="dim">${empty}</p>`
@@ -210,4 +261,45 @@ ${fieldTable(flatten(r.server))}
 <h2>Client</h2>
 ${r.client ? fieldTable(flatten(r.client)) : html`<p class="dim">Not sent.</p>`}
 ${images.length > 0 ? html`<h2>Images</h2><div class="images">${images}</div>` : ''}`)
+}
+
+/** `1.5 MiB` for a byte count. */
+function size(bytes: number): string {
+  if (bytes < 1024) return `${bytes.toString()} B`
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KiB`
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MiB`
+  return `${(bytes / 1024 ** 3).toFixed(2)} GiB`
+}
+
+/** What the demo video's page shows: the media dir, and the file if any. */
+export interface DemoVideoView {
+  mediaDir?: string
+  info: { size: number; modified: Date } | null
+}
+
+/**
+ * The demo video's page: the file currently in the media dir, and a form to
+ * replace it. The form PUTs the chosen file (see `SCRIPT`), which is served
+ * on the public site at `/demo-video`.
+ */
+export function demoVideoPage(view: DemoVideoView): Html {
+  const heading = html`<h1>Demo video</h1>
+<p><a href="/">← All feedback</a></p>`
+  if (!view.mediaDir) {
+    return page('Demo video', html`${heading}
+<p class="dim">No media dir is configured (<span class="mono">MEDIA_DIR</span>), so there is nowhere to save the video and nothing to serve.</p>`)
+  }
+  const current = view.info
+    ? html` The file is served at <span class="mono">/demo-video</span> on the public site, and is currently <strong>${size(view.info.size)}</strong>, uploaded ${when(view.info.modified)}.`
+    : html` No video yet. Once uploaded it is served at <span class="mono">/demo-video</span> on the public site.`
+  return page('Demo video', html`${heading}
+<p>${current}</p>
+<form id="upload" method="post" action="/demo-video" enctype="multipart/form-data" class="toolbar">
+<input type="file" name="video" accept="video/mp4" required>
+<button type="submit">Upload</button>
+<progress hidden></progress>
+<span class="status" role="status"></span>
+</form>
+<p class="dim">An MP4 of up to 2 GiB. The upload replaces the file atomically, so a viewer is never served a half-written file.</p>
+<script>${raw(SCRIPT)}</script>`)
 }
